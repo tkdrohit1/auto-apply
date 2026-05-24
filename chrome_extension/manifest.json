@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "JobForge AI Client",
+  "version": "1.0.0",
+  "description": "Zero-friction browser extension bridge connecting LinkedIn/Naukri automation to your JobForge Cloud SaaS dashboard.",
+  "permissions": [
+    "tabs",
+    "scripting",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1:8000/*",
+    "http://localhost:8000/*",
+    "https://*.linkedin.com/*",
+    "https://*.naukri.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://127.0.0.1:8000/*",
+        "http://localhost:8000/*"
+      ],
+      "js": ["content_keepalive.js"]
+    }
+  ],
+  "action": {
+    "default_title": "JobForge AI Client"
+  }
+}

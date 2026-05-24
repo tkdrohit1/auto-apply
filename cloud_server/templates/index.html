@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JobForge AI - Premium Job Automation Dashboard</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <!-- FontAwesome for high-fidelity icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-icon">JF</div>
+                <h1 class="brand-text">JobForge AI</h1>
+            </div>
+            
+            <ul class="nav-menu">
+                <li class="nav-item active" onclick="switchTab('dashboard')">
+                    <i class="fa-solid fa-chart-line"></i>
+                    <span>Dashboard</span>
+                </li>
+                <li class="nav-item" onclick="switchTab('kanban')">
+                    <i class="fa-solid fa-columns"></i>
+                    <span>Kanban Board</span>
+                </li>
+                <li class="nav-item" onclick="switchTab('console')">
+                    <i class="fa-solid fa-terminal"></i>
+                    <span>Automation Logs</span>
+                </li>
+                <li class="nav-item" onclick="switchTab('settings')">
+                    <i class="fa-solid fa-gears"></i>
+                    <span>Settings</span>
+                </li>
+            </ul>
+            
+            <div class="sidebar-footer">
+                <div class="user-badge">
+                    <div class="user-avatar" id="sidebar-user-avatar">RS</div>
+                    <div class="user-info">
+                        <h4 id="sidebar-user-name">Rohit Singh</h4>
+                        <p id="sidebar-user-title">Senior Engineer - AI/LLM</p>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Dashboard View -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header-container">
+                <div class="header-title">
+                    <h1 id="page-title">Dashboard</h1>
+                    <p id="page-subtitle">Intelligent Job Search & Automation Suite</p>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-secondary" onclick="openSessionCapturer()" style="background: rgba(168, 85, 247, 0.1); border-color: rgba(168, 85, 247, 0.25); color: var(--text-main);">
+                        <i class="fa-solid fa-key" style="color: var(--primary);"></i> Connect Accounts
+                    </button>
+                    <button class="btn btn-primary" id="btn-start-crawler" onclick="triggerCrawler()">
+                        <i class="fa-solid fa-circle-play"></i>
+                        <span>Start Search</span>
+                    </button>
+                    <button class="btn btn-secondary" onclick="refreshDashboardData()">
+                        <i class="fa-solid fa-arrows-rotate"></i>
+                        <span>Refresh</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- TAB 1: DASHBOARD / FEED SPLIT VIEW -->
+            <div id="tab-dashboard" class="tab-content active">
+                <!-- Stats Row -->
+                <div class="stats-grid">
+                    <div class="stat-card glass-panel">
+                        <div class="stat-info">
+                            <h3>Jobs Scanned</h3>
+                            <p id="stat-scanned">0</p>
+                        </div>
+                        <div class="stat-icon scanned">
+                            <i class="fa-solid fa-radar"></i>
+                        </div>
+                    </div>
+                    <div class="stat-card glass-panel">
+                        <div class="stat-info">
+                            <h3>Strong Matches</h3>
+                            <p id="stat-matches">0</p>
+                        </div>
+                        <div class="stat-icon matched">
+                            <i class="fa-solid fa-circle-nodes"></i>
+                        </div>
+                    </div>
+                    <div class="stat-card glass-panel">
+                        <div class="stat-info">
+                            <h3>Applications Sent</h3>
+                            <p id="stat-applied">0</p>
+                        </div>
+                        <div class="stat-icon applied">
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </div>
+                    </div>
+                    <div class="stat-card glass-panel">
+                        <div class="stat-info">
+                            <h3>Interviews Scheduled</h3>
+                            <p id="stat-interviews">0</p>
+                        </div>
+                        <div class="stat-icon interviews">
+                            <i class="fa-solid fa-calendar-check"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Combined feed list and detail panel -->
+                <div class="dashboard-grid">
+                    <!-- Left: Matches Feed -->
+                    <div class="glass-panel">
+                        <div class="panel-header" style="flex-direction: column; align-items: stretch; gap: 12px; padding-bottom: 12px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <h2>Discovered Opportunities</h2>
+                                <select id="filter-platform" style="background: #111827; border: 1px solid #374151; color: white; border-radius: 6px; padding: 4px 8px; font-size: 12px;" onchange="filterJobsList()">
+                                    <option value="All">All Platforms</option>
+                                    <option value="LinkedIn">LinkedIn</option>
+                                    <option value="Naukri">Naukri</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Category Segregation Pills -->
+                            <div class="category-pills" style="display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px;">
+                                <button class="pill-btn active" onclick="switchCategoryFilter('strong')" style="background: rgba(168, 85, 247, 0.15); color: var(--primary); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 20px; padding: 4px 12px; font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all 0.2s;">
+                                    Strong Matches
+                                </button>
+                                <button class="pill-btn" onclick="switchCategoryFilter('fresh')" style="background: #111827; color: var(--text-muted); border: 1px solid #374151; border-radius: 20px; padding: 4px 12px; font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all 0.2s;">
+                                    Other Scans
+                                </button>
+                                <button class="pill-btn" onclick="switchCategoryFilter('applied')" style="background: #111827; color: var(--text-muted); border: 1px solid #374151; border-radius: 20px; padding: 4px 12px; font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all 0.2s;">
+                                    Applied
+                                </button>
+                                <button class="pill-btn" onclick="switchCategoryFilter('all')" style="background: #111827; color: var(--text-muted); border: 1px solid #374151; border-radius: 20px; padding: 4px 12px; font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all 0.2s;">
+                                    All Scanned
+                                </button>
+                            </div>
+                            
+                            <!-- Bulk Controls -->
+                            <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05); font-size: 12px;">
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text-muted); font-weight: 500;">
+                                    <input type="checkbox" id="select-all-jobs" onchange="toggleSelectAllJobs(this)" style="accent-color: var(--primary); cursor: pointer;">
+                                    Select All (<span id="selected-jobs-count">0</span>)
+                                </label>
+                                <div style="display: flex; gap: 6px;">
+                                    <button class="btn btn-secondary" onclick="triggerBulkApply()" style="padding: 4px 10px; font-size: 11px; display: flex; align-items: center; gap: 4px; background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); color: var(--text-main);">
+                                        <i class="fa-solid fa-square-check"></i> Apply Selected
+                                    </button>
+                                    <button class="btn btn-primary" onclick="triggerApplyToAll()" style="padding: 4px 10px; font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                                        <i class="fa-solid fa-wand-magic-sparkles"></i> Apply to All
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="job-feed-list" id="job-list-container">
+                            <div style="text-align: center; color: var(--text-dark); padding: 40px;">
+                                <i class="fa-solid fa-briefcase" style="font-size: 40px; margin-bottom: 12px; display: block;"></i>
+                                No jobs scanned yet. Click "Start Search" above!
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Expanded Compatibility Detail Panel -->
+                    <div class="glass-panel" id="detail-panel" style="display: none;">
+                        <div class="panel-header" style="border-bottom: none; padding-bottom: 5px;">
+                            <h2 id="detail-job-title">Job Title</h2>
+                            <div class="match-badge high" id="detail-match-badge">95% Match</div>
+                        </div>
+                        <div style="padding: 0 24px; color: var(--text-muted); font-size: 14px; font-weight: 500; margin-bottom: 20px;">
+                            <span id="detail-company" style="color: white; font-weight: 600;">Company</span> &bull; 
+                            <span id="detail-location">Location</span> &bull; 
+                            <span id="detail-platform" style="color: var(--secondary);">Platform</span>
+                        </div>
+                        
+                        <div class="detail-content">
+                            <!-- Custom Actions -->
+                            <div style="display: flex; gap: 12px;">
+                                <button class="btn btn-primary" style="flex: 1;" id="btn-apply-now" onclick="triggerAutoApply()">
+                                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                                    <span>Auto-Apply Now</span>
+                                </button>
+                                <button class="btn btn-secondary" id="btn-status-applied" onclick="markJobAsApplied()">
+                                    <i class="fa-solid fa-check"></i>
+                                    <span>Mark Applied</span>
+                                </button>
+                                <button class="btn btn-secondary" onclick="archiveJobOpportunity()">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </div>
+
+                            <!-- Skills Tag Analysis -->
+                            <div>
+                                <h3 class="detail-section-title">Resume Compatibility Breakdown</h3>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                    <div>
+                                        <h4 style="font-size: 12px; color: var(--color-success); margin-bottom: 8px;"><i class="fa-solid fa-circle-check"></i> Matched Skills</h4>
+                                        <div class="skills-badge-list" id="detail-matched-skills">
+                                            <!-- JS -->
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <h4 style="font-size: 12px; color: var(--color-danger); margin-bottom: 8px;"><i class="fa-solid fa-triangle-exclamation"></i> Gaps & Core Requirements</h4>
+                                        <div class="skills-badge-list" id="detail-missing-skills">
+                                            <!-- JS -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- AI Explanation -->
+                            <div>
+                                <h3 class="detail-section-title">AI Compatibility Rationale</h3>
+                                <div class="explanation-box" id="detail-explanation">
+                                    Explanation text...
+                                </div>
+                            </div>
+
+                            <!-- Bespoke Cover Letter -->
+                            <div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <h3 class="detail-section-title" style="margin-bottom: 0;">Bespoke Cover Letter</h3>
+                                    <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 11px;" onclick="copyCoverLetterText()">
+                                        <i class="fa-solid fa-copy"></i> Copy
+                                    </button>
+                                </div>
+                                <div class="cover-letter-box" id="detail-cover-letter">
+                                    Cover letter text...
+                                </div>
+                            </div>
+
+                            <!-- Full Description -->
+                            <div>
+                                <h3 class="detail-section-title">Full Job Description</h3>
+                                <div style="max-height: 200px; overflow-y: auto; font-size: 13px; line-height: 1.6; color: var(--text-muted); background: rgba(0,0,0,0.1); padding: 12px; border-radius: 8px; white-space: pre-line;" id="detail-description">
+                                    Job description...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: KANBAN BOARD -->
+            <div id="tab-kanban" class="tab-content">
+                <div class="kanban-board">
+                    <!-- Column 1: Matches -->
+                    <div class="kanban-column">
+                        <div class="kanban-column-header">
+                            <span>Strong Matches</span>
+                            <span class="column-count" id="count-Matches">0</span>
+                        </div>
+                        <div class="kanban-cards" id="col-Matches" ondragover="allowDrop(event)" ondrop="handleDrop(event, 'Matches')"></div>
+                    </div>
+                    
+                    <!-- Column 2: Ready / Tailored -->
+                    <div class="kanban-column">
+                        <div class="kanban-column-header">
+                            <span>Tailored / Drafts</span>
+                            <span class="column-count" id="count-Tailored">0</span>
+                        </div>
+                        <div class="kanban-cards" id="col-Tailored" ondragover="allowDrop(event)" ondrop="handleDrop(event, 'Tailored')"></div>
+                    </div>
+                    
+                    <!-- Column 3: Applied -->
+                    <div class="kanban-column">
+                        <div class="kanban-column-header">
+                            <span>Applied</span>
+                            <span class="column-count" id="count-Applied">0</span>
+                        </div>
+                        <div class="kanban-cards" id="col-Applied" ondragover="allowDrop(event)" ondrop="handleDrop(event, 'Applied')"></div>
+                    </div>
+                    
+                    <!-- Column 4: Interviewing -->
+                    <div class="kanban-column">
+                        <div class="kanban-column-header">
+                            <span>Interviewing</span>
+                            <span class="column-count" id="count-Interviewing">0</span>
+                        </div>
+                        <div class="kanban-cards" id="col-Interviewing" ondragover="allowDrop(event)" ondrop="handleDrop(event, 'Interviewing')"></div>
+                    </div>
+                    
+                    <!-- Column 5: Offer / Closed -->
+                    <div class="kanban-column">
+                        <div class="kanban-column-header">
+                            <span>Offers / Rejected</span>
+                            <span class="column-count" id="count-Closed">0</span>
+                        </div>
+                        <div class="kanban-cards" id="col-Closed" ondragover="allowDrop(event)" ondrop="handleDrop(event, 'Closed')"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: LIVE AUTOMATION LOGS -->
+            <div id="tab-console" class="tab-content">
+                <div class="console-view glass-panel" style="padding: 24px;">
+                    <div class="console-controls">
+                        <div style="display: flex; gap: 12px; align-items: center;">
+                            <span style="font-weight: 600; font-size: 15px;"><i class="fa-solid fa-circle" style="color: var(--primary); font-size: 10px; animation: pulse 1s infinite;"></i> Engine Status:</span>
+                            <span id="crawler-status-badge" style="color: var(--text-dark); font-weight: bold; text-transform: uppercase;">Inactive</span>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn btn-secondary" onclick="clearTerminalLogs()">
+                                <i class="fa-solid fa-ban"></i> Clear Terminal
+                            </button>
+                            <button class="btn btn-danger" id="btn-stop-crawler" onclick="stopCrawlerEngine()" style="display: none;">
+                                <i class="fa-solid fa-circle-stop"></i> Stop Search
+                            </button>
+                        </div>
+                    </div>
+                    <div class="console-screen" id="console-output">
+                        <div class="console-line info">[System] JobForge AI Engine Console Initialized. Ready for deployment.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: SYSTEM SETTINGS -->
+            <div id="tab-settings" class="tab-content">
+                <div class="settings-grid">
+                    <!-- Profile Switcher Card -->
+                    <div class="glass-panel settings-card" style="grid-column: span 2; margin-bottom: 24px;">
+                        <div style="margin-bottom: 24px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <h2 style="font-family: var(--font-display); font-size: 20px;"><i class="fa-solid fa-address-card" style="color: var(--primary); margin-right: 8px;"></i> Active Candidate Profile</h2>
+                                <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Select the active professional identity for crawler searches and AI match scoring.</p>
+                            </div>
+                            <div>
+                                <select id="settings-active-profile" style="background: #111827; border: 1px solid #374151; color: white; border-radius: 8px; padding: 8px 16px; font-size: 14px; font-weight: 600;" onchange="switchActiveProfileBackend()">
+                                    <!-- Populated dynamically -->
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- Quick Profile Details -->
+                        <div style="display: grid; grid-template-columns: 80px 1fr; gap: 20px; align-items: center;">
+                            <div class="user-avatar" id="settings-profile-avatar" style="width: 72px; height: 72px; font-size: 24px; border-radius: 50%; background: var(--bg-deep); border: 2px solid var(--primary); display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 800; text-transform: uppercase;">
+                                RS
+                            </div>
+                            <div>
+                                <h3 id="settings-profile-name" style="font-size: 18px; font-family: var(--font-display); font-weight: 700;">Rohit Singh</h3>
+                                <p id="settings-profile-title" style="color: var(--secondary); font-size: 14px; font-weight: 500; margin-top: 2px;">Senior Software Engineer - AI/LLM</p>
+                                <p id="settings-profile-summary" style="color: var(--text-muted); font-size: 12.5px; line-height: 1.5; margin-top: 8px; max-width: 800px;">Resume summary...</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Left Settings Card -->
+                    <div class="glass-panel settings-card">
+                        <div style="margin-bottom: 24px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 12px;">
+                            <h2 style="font-family: var(--font-display); font-size: 20px;"><i class="fa-solid fa-key" style="color: var(--primary); margin-right: 8px;"></i> AI Matching & API Keys</h2>
+                            <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Configure the LLMs powering job compatibility and resume scoring.</p>
+                        </div>
+                        
+                        <div class="form-group checkbox-group">
+                            <input type="checkbox" id="settings-use-gemini" onchange="toggleApiKeysFields()">
+                            <label for="settings-use-gemini" style="margin-bottom: 0; text-transform: none; font-weight: 500; font-size: 14px; cursor: pointer;">Use Google Gemini API (Free via Google AI Studio)</label>
+                        </div>
+                        
+                        <div class="form-group" id="group-gemini-key">
+                            <label for="settings-gemini-key">Gemini API Key (Primary)</label>
+                            <input type="text" id="settings-gemini-key" placeholder="AIzaSy..." style="margin-bottom: 12px;">
+                            
+                            <label for="settings-gemini-key-fallback">Gemini API Key 1 (Fallback)</label>
+                            <input type="text" id="settings-gemini-key-fallback" placeholder="AIzaSy... (Used if primary is exhausted)">
+                        </div>
+                        
+                        <div class="form-group" id="group-openai-key" style="display: none;">
+                            <label for="settings-openai-key">OpenAI API Key</label>
+                            <input type="text" id="settings-openai-key" placeholder="sk-...">
+                        </div>
+                        
+                        <div style="margin-top: 30px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 20px;">
+                            <h2 style="font-family: var(--font-display); font-size: 20px;"><i class="fa-solid fa-robot" style="color: var(--secondary); margin-right: 8px;"></i> Automation Mode</h2>
+                            <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Select browser execution parameters.</p>
+                        </div>
+                        
+                        <div class="form-group checkbox-group" style="margin-top: 16px;">
+                            <input type="checkbox" id="settings-review-mode">
+                            <label for="settings-review-mode" style="margin-bottom: 0; text-transform: none; font-weight: 500; font-size: 14px; cursor: pointer;">Enable Review Mode (Recommended - Browser pauses for you to click final apply)</label>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="settings-threshold">Auto-Apply Match Threshold (<span id="threshold-val">85</span>%)</label>
+                            <input type="range" id="settings-threshold" min="60" max="95" step="5" value="85" style="width: 100%; accent-color: var(--primary);" oninput="document.getElementById('threshold-val').innerText = this.value">
+                        </div>
+                        
+                        <div style="margin-top: 24px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 20px;">
+                            <h2 style="font-family: var(--font-display); font-size: 18px;"><i class="fa-solid fa-key" style="color: var(--primary); margin-right: 8px;"></i> Account Login Sessions</h2>
+                            <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px; margin-bottom: 16px; line-height: 1.4;">Securely log in to LinkedIn & Naukri using a dedicated Chrome window. Authentication states are permanently saved in your private app folder.</p>
+                            <button class="btn btn-primary" onclick="openSessionCapturer()" style="width: 100%;">
+                                <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Session Login Capturer
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Right Settings Card -->
+                    <div class="glass-panel settings-card">
+                        <div style="margin-bottom: 24px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 12px;">
+                            <h2 style="font-family: var(--font-display); font-size: 20px;"><i class="fa-solid fa-magnifying-glass" style="color: var(--secondary); margin-right: 8px;"></i> Search Criteria</h2>
+                            <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Refine keywords and locations for crawlers.</p>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Search Queries (Keywords)</label>
+                            <div style="display: flex; gap: 8px;">
+                                <input type="text" id="input-new-query" placeholder="e.g. LLM Architect" style="flex: 1;">
+                                <button class="btn btn-secondary" onclick="addSearchKeyword('query')">Add</button>
+                            </div>
+                            <div class="badge-row" id="container-search-queries">
+                                <!-- Dynamic tags -->
+                            </div>
+                        </div>
+
+                        <div class="form-group" style="margin-top: 24px;">
+                            <label>Target Locations</label>
+                            <div style="display: flex; gap: 8px;">
+                                <input type="text" id="input-new-loc" placeholder="e.g. Remote" style="flex: 1;">
+                                <button class="btn btn-secondary" onclick="addSearchKeyword('location')">Add</button>
+                            </div>
+                            <div class="badge-row" id="container-locations">
+                                <!-- Dynamic tags -->
+                            </div>
+                        </div>
+
+                        <div class="form-group" style="margin-top: 24px;">
+                            <label for="settings-chrome-path">Google Chrome Profile Folder Path</label>
+                            <input type="text" id="settings-chrome-path" placeholder="C:\Users\...\User Data">
+                            <span style="font-size: 11px; color: var(--text-dark); margin-top: 4px; display: block;">If Google Chrome is open, the system will execute search in a secure private fallback window.</span>
+                        </div>
+
+                        <div style="text-align: right; margin-top: 30px;">
+                            <button class="btn btn-primary" onclick="saveSettingsToBackend()">
+                                <i class="fa-solid fa-floppy-disk"></i> Save Settings
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Script connection -->
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local Databases & Dynamic Settings
+data/jobs.db
+data/settings.json
+cloud_server/data/jobs.db
+cloud_server/data/settings.json
+
+# Chrome Extensions / Active session stores
+data/sessions/
+cloud_server/data/sessions/
+
+# Environments & Private API keys
+.env
+.env.local
+
+# Logs and Debug files
+*.log
+logs/
+
+# IDE / Operating System files
+.vscode/
+.idea/
+Thumbs.db
+ehthumbs.db
+Desktop.ini

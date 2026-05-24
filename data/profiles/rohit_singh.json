@@ -1,0 +1,63 @@
+{
+    "id": "rohit_singh",
+    "name": "Rohit Singh",
+    "title": "Senior Software Engineer - AI/LLM",
+    "location": "Noida, Uttar Pradesh, India",
+    "contact": {
+        "email": "rsingwork248@gmail.com",
+        "phone": "+91 7071181822",
+        "github": "https://github.com/tkdrohit1",
+        "linkedin": "https://linkedin.com/in/tkdrohit"
+    },
+    "summary": "Innovative Senior Software Engineer with 4.11 years of experience in AI-driven enhancements and large language models. Developed SentimentIQ leveraging GPT-5, achieving an 85% reduction in manual feedback analysis and real-time processing of over 10,000 responses. Seeking to elevate technological solutions by integrating advanced prompt engineering techniques and retrieval-augmented generation in future projects.",
+    "experience": [
+        {
+            "role": "Senior Software Engineer",
+            "company": "Optum Global Solutions",
+            "period": "March 2024 - Present",
+            "location": "Noida, India",
+            "highlights": [
+                "Developed SentimentIQ using advanced prompt engineering techniques with OpenAI GPT-5 and Claude LLMs, implementing RAG architecture and MongoDB vector embeddings, reducing manual feedback analysis by 85% and enabling real-time processing of 10,000+ customer responses into instant business insights.",
+                "Developed a search service transforming data from technical websites, files, and SharePoint into a unified semantic search platform using ML techniques and a Cosmos vector database. Indexed over 10,000 files with search times under 5 seconds.",
+                "Developed a Chatbot using Retrieval-Augmented Generation and LangChain to integrate Azure OpenAI services, converting data into embeddings and storing in Cosmos DB. Enhanced search response speed by up to 80%."
+            ],
+            "skills": ["Python", "Flask", "OpenAI GPT-5", "Claude AI", "Prompt Engineering", "RAG", "MongoDB Atlas Vector Search", "Semantic Search", "REST APIs", "NLP", "Git", "Cloud Deployment"]
+        },
+        {
+            "role": "Software Engineer",
+            "company": "Optum Global Solutions",
+            "period": "June 2021 - February 2024",
+            "location": "Bangalore, India",
+            "highlights": [
+                "Developed an automated reporting tool for GitHub repositories using Python, GitHub APIs, and GraphQL, improving visibility across 100,000+ repositories.",
+                "Migrated schema and data from TigerGraph (Graph DB) to MySQL (Relational DB), saving $10k per month in licensing costs."
+            ],
+            "skills": ["Python", "GitHub API", "GraphQL", "TigerGraph", "MySQL", "Spring Data", "Spring Boot", "Java"]
+        }
+    ],
+    "projects": [
+        {
+            "title": "SentimentIQ - AI powered Feedback Intelligence Platform",
+            "company": "OPTUM",
+            "period": "June 2024 - Present",
+            "skills": ["Python", "Flask", "OpenAI GPT-5", "RAG", "Vector Search"],
+            "description": "Engineered advanced prompt engineering strategies for OpenAI GPT-5 and Claude. Implemented RAG architecture using MongoDB Atlas vector embeddings. Built scalable Flask API with real-time session management."
+        }
+    ],
+    "education": [
+        {
+            "degree": "MTech",
+            "specialization": "Computer Science and Engineering",
+            "institution": "Indian Institute of Technology Bhubaneswar",
+            "location": "Bhubaneswar, Odisha",
+            "year": "2021"
+        }
+    ],
+    "skills": {
+        "languages_frameworks": ["Java", "Python", "SQL Server", "Spring Boot", "JavaScript", "Flask API", "LLM", "GPT Models", "Generative AI", "RAG"],
+        "cloud_devops": ["Microsoft Azure", "AWS", "Docker", "Kubernetes"],
+        "web_databases": ["REST APIs", "MySQL", "HTML5", "CSS3", "Cosmos DB"],
+        "tools_platforms": ["Git", "SharePoint", "Linux", "Windows", "Microsoft Power Automate"],
+        "operational": ["Governance", "Time management", "Continuous improvement", "Workflows"]
+    }
+}

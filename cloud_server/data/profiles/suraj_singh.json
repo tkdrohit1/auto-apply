@@ -1,0 +1,89 @@
+{
+    "id": "suraj_singh",
+    "name": "Suraj Singh",
+    "title": "MES Software Engineer",
+    "location": "Gwalior, Madhya Pradesh, India",
+    "contact": {
+        "email": "surajsingh.dev@outlook.com",
+        "phone": "7499140095",
+        "github": "https://github.com/suraj-singh-dev",
+        "linkedin": "https://linkedin.com/in/suraj-singh-dev"
+    },
+    "summary": "MES Software Engineer with strong expertise in C#, .NET Core, and PostgreSQL, specializing in real-time manufacturing systems and shop-floor integration. Experienced in developing reliable backend solutions for MES applications, enabling production tracking, material traceability, inventory management, and SAP integration. Hands-on experience with industrial communication technologies such as OPC UA, Kepware, and WebSockets.",
+    "experience": [
+        {
+            "role": "Software Developer (MES Engineer)",
+            "company": "Smart Controls India Pvt. Ltd.",
+            "period": "June 2024 - Present",
+            "location": "Gwalior, Madhya Pradesh",
+            "highlights": [
+                "Implemented end-to-end MES workflows for Raw Material Issue (RMI) & Raw Material Booking (RMB), ensuring accurate inventory deduction, SAP acknowledgement, and production traceability.",
+                "Designed business logic for Inventory Management & Production Tracking, enabling real-time production quantity tracking and material consumption reporting based on quality checks.",
+                "Worked on SAP-MES Integration using OData services, managing master data flow, transactional updates, and acknowledgment mechanisms between ERP and shop-floor systems.",
+                "Integrated PLC and equipment data into MES using OPC UA and Kepware, implementing WebSockets for real-time production data capture and monitoring.",
+                "Implemented NCMR (Non-Conforming Material Report) workflows for logging non-conforming materials, quantity segregation, rejection/rework decisions, and SAP sync."
+            ],
+            "skills": ["C#", ".NET Core", ".NET Framework", "PostgreSQL", "OPC UA", "Kepware", "WebSocket", "SAP-MES Integration", "OData", "Inventory Management", "Traceability"]
+        }
+    ],
+    "projects": [
+        {
+            "title": "Raw Material Issue (RMI) & Raw Material Booking (RMB)",
+            "company": "Smart Controls India",
+            "period": "June 2024 - Present",
+            "skills": ["C#", ".NET", "PostgreSQL", "SAP Integration"],
+            "description": "Implemented end-to-end MES workflows for raw material issue and booking. Ensured accurate inventory deduction, SAP acknowledgement handling, and production traceability."
+        },
+        {
+            "title": "Inventory Management & Production Tracking",
+            "company": "Smart Controls India",
+            "period": "2024",
+            "skills": ["C#", ".NET", "PostgreSQL", "WebSockets"],
+            "description": "Designed logic for inventory updates based on production status and quality results. Enabled real-time production quantity tracking and material consumption reporting."
+        },
+        {
+            "title": "SAP-MES Integration",
+            "company": "Smart Controls India",
+            "period": "2024",
+            "skills": ["SAP Integration", "OData Services", "C#"],
+            "description": "Worked on SAP integration scenarios using OData services. Handled master data flow, transactional updates, and acknowledgment mechanisms between SAP and MES."
+        },
+        {
+            "title": "Shop-Floor Integration",
+            "company": "Smart Controls India",
+            "period": "2024",
+            "skills": ["OPC UA", "Kepware", "WebSockets", "C#"],
+            "description": "Integrated PLC and equipment data into MES using OPC UA and Kepware. Enabled real-time production data capture and monitoring via WebSockets."
+        },
+        {
+            "title": "Non-Conforming Material Report (NCMR)",
+            "company": "Smart Controls India",
+            "period": "2024",
+            "skills": ["C#", ".NET", "PostgreSQL", "Workflow Logic"],
+            "description": "Implemented NCMR workflows for logging non-conforming materials during production and quality checks. Handled quantity segregation, rejection, rework decisions, and corresponding inventory updates."
+        }
+    ],
+    "education": [
+        {
+            "degree": "Master of Computer Applications (MCA)",
+            "specialization": "Computer Science & Application",
+            "institution": "Integral University, Lucknow",
+            "location": "Lucknow",
+            "year": "2026"
+        },
+        {
+            "degree": "Post Graduate Diploma",
+            "specialization": "Advanced Computing",
+            "institution": "Centre for Development of Advanced Computing (CDAC)",
+            "location": "Hyderabad",
+            "year": "2023"
+        }
+    ],
+    "skills": {
+        "languages_frameworks": ["C#", ".NET Core", ".NET Framework", "ASP.NET / Web API", "Windows Services", "JavaScript", "jQuery"],
+        "cloud_devops": ["Git", "GitLab"],
+        "web_databases": ["PostgreSQL", "SQL Server", "OData Services", "WebSockets"],
+        "tools_platforms": ["OPC UA", "OPC DA", "Kepware", "pgAdmin", "Visual Studio", "VS Code"],
+        "operational": ["MES Domain Knowledge", "Production Traceability", "Auto Chemical Lines", "Auto Curing", "Plant Commissioning", "Go-Live Support"]
+    }
+}
