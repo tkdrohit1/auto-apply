@@ -254,6 +254,19 @@ function renderJobsList() {
         filtered = filtered.filter(job => job.platform === platformFilter);
     }
     
+    // Apply Sorting
+    const sortDropdown = document.getElementById('sort-jobs');
+    const sortBy = sortDropdown ? sortDropdown.value : 'recent';
+    if (sortBy === 'recent') {
+        filtered.sort((a, b) => {
+            const timeA = new Date(a.created_at || a.updated_at || 0).getTime();
+            const timeB = new Date(b.created_at || b.updated_at || 0).getTime();
+            return timeB - timeA;
+        });
+    } else {
+        filtered.sort((a, b) => b.match_score - a.match_score);
+    }
+    
     if (filtered.length === 0) {
         container.innerHTML = `
             <div style="text-align: center; color: var(--text-dark); padding: 40px;">

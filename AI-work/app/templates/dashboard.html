@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AURA — AI Opportunity Audit & Outreach Engine</title>
+    
+    <!-- SEO & Metadata -->
+    <meta name="description" content="AURA is a premium B2B lead generation engine. Automatically discover niche small businesses, perform AI-powered workflow audits, score opportunities, and generate custom high-converting outreach scripts.">
+    <meta name="keywords" content="AI Automation, B2B lead generation, workflow automation, cold outreach agent, business scraper">
+    <meta name="author" content="Antigravity Team">
+    
+    <!-- Styling stylesheet -->
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+
+    <div class="app-container" id="app-workspace">
+        
+        <!-- Sidebar - Search and Crawler Control -->
+        <aside>
+            <div class="brand" id="brand-header">
+                <div class="brand-logo">
+                    <!-- Elegant SVG Logo representing a scanning radar / AI brain -->
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.04-.42 1.99-1.07 2.75z"/>
+                    </svg>
+                </div>
+                <div class="brand-text">
+                    <h1>AURA ENGINE</h1>
+                    <span>B2B Opportunity Hunt</span>
+                </div>
+            </div>
+            
+            <!-- Discovery controller -->
+            <form class="glass-panel search-box" id="search-form">
+                <h3>🔍 Target Acquisition</h3>
+                
+                <div class="input-group">
+                    <label for="search-niche">Business Niche</label>
+                    <select id="search-niche" name="niche">
+                        <option value="Real Estate">Real Estate Agencies</option>
+                        <option value="Clinic">Medical & Dental Clinics</option>
+                        <option value="Accounting">Accounting & CPA Firms</option>
+                    </select>
+                </div>
+                
+                <div class="input-group">
+                    <label for="search-city">Target City</label>
+                    <input type="text" id="search-city" placeholder="e.g. Miami, Boston" required value="Miami">
+                </div>
+                
+                <div class="input-group">
+                    <label for="search-limit">Lead Limit</label>
+                    <select id="search-limit">
+                        <option value="5">5 listings</option>
+                        <option value="8" selected>8 listings</option>
+                        <option value="12">12 listings</option>
+                        <option value="20">20 listings</option>
+                    </select>
+                </div>
+                
+                <button type="submit" class="btn-primary" id="btn-search-trigger">
+                    🚀 Discover Leads
+                </button>
+            </form>
+            
+            <!-- History section -->
+            <div class="history-box" id="recent-scrapes-section">
+                <h3>📜 Scrape Queries</h3>
+                <div class="history-list" id="history-list">
+                    <!-- Populated dynamically via JS -->
+                    <div style="text-align:center; padding:1rem; font-size:0.8rem; color:var(--text-muted);">
+                        Loading history...
+                    </div>
+                </div>
+            </div>
+        </aside>
+        
+        <!-- Main Board area -->
+        <main>
+            
+            <!-- Welcome Header Banner -->
+            <header class="welcome-banner" id="dashboard-header">
+                <div>
+                    <h2>Operational Audit Board</h2>
+                    <p>Search, analyze, and build custom outbound funnels for high-intent local businesses.</p>
+                </div>
+                
+                <!-- OpenAI Enabled Indicator -->
+                <div class="openai-status" id="indicator-pill" title="If disabled, Aura operates in high-quality Mock fallbacks for offline testing">
+                    <div class="indicator {% if openai_enabled %}on{% else %}off{% endif %}"></div>
+                    <span>OpenAI API: {% if openai_enabled %}Connected{% else %}Simulated{% endif %}</span>
+                </div>
+            </header>
+            
+            <!-- Stats card deck -->
+            <section class="stats-strip" id="stats-summary-strip">
+                <div class="glass-panel stat-card">
+                    <div class="stat-icon">
+                        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.04-.42 1.99-1.07 2.75z"/></svg>
+                    </div>
+                    <div class="stat-info">
+                        <span class="stat-value" id="stat-discovered">0</span>
+                        <span class="stat-label">Discovered</span>
+                    </div>
+                </div>
+                
+                <div class="glass-panel stat-card">
+                    <div class="stat-icon">
+                        <svg viewBox="0 0 24 24"><path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7zm2.85 11.1l-.85.6V16h-4v-2.3l-.85-.6C7.8 12.16 7 10.63 7 9c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.63-.8 3.16-2.15 4.1z"/></svg>
+                    </div>
+                    <div class="stat-info">
+                        <span class="stat-value" id="stat-analyzed">0</span>
+                        <span class="stat-label">AI Audited</span>
+                    </div>
+                </div>
+                
+                <div class="glass-panel stat-card">
+                    <div class="stat-icon">
+                        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                    </div>
+                    <div class="stat-info">
+                        <span class="stat-value" id="stat-priority">0</span>
+                        <span class="stat-label">High Priority</span>
+                    </div>
+                </div>
+                
+                <div class="glass-panel stat-card">
+                    <div class="stat-icon">
+                        <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+                    </div>
+                    <div class="stat-info">
+                        <span class="stat-value" id="stat-contacted">0</span>
+                        <span class="stat-label">Contacted</span>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Split Grid Workspace -->
+            <section class="board-split" id="board-workspace">
+                
+                <!-- Lead List Queue -->
+                <div class="lead-queue" id="leads-list-section">
+                    <div class="section-title" id="lead-queue-title">
+                        <span>🎯 Lead Queue</span>
+                        <span class="badge-count" id="queue-count">0</span>
+                    </div>
+                    
+                    <div class="lead-grid" id="lead-grid">
+                        <!-- Populated dynamically via JS -->
+                        <div style="text-align:center; padding:3rem; font-size:0.9rem; color:var(--text-secondary);">
+                            Discovering leads database...
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Lead Details Inspector -->
+                <div class="glass-panel lead-inspector" id="inspector-panel">
+                    <!-- Populated dynamically when clicking a lead card -->
+                    <div class="inspector-placeholder">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                        </svg>
+                        <h3>No Business Selected</h3>
+                        <p>Select a business lead from the queue list to inspect their automated audit report and custom outreach copy.</p>
+                    </div>
+                </div>
+                
+            </section>
+            
+        </main>
+        
+    </div>
+    
+    <!-- Floating Toast notification alerts container -->
+    <div id="toast-container"></div>
+    
+    <!-- Javascript application file -->
+    <script src="/static/js/main.js"></script>
+</body>
+</html>
