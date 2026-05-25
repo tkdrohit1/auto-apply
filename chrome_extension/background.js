@@ -192,6 +192,7 @@ async function scrapeNaukriSearch(query, location, maxJobs, settings, crawlId) {
     const card = cardResults[i];
     sendLog("INFO", `[Crawler] Naukri (${i+1}/${cardResults.length}): Fetching description for '${card.title}' at '${card.company}'...`);
     
+    try {
       const response = await new Promise((resolve) => {
         chrome.tabs.sendMessage(tab.id, { action: "FETCH_DETAIL", url: card.url }, (res) => {
           if (chrome.runtime.lastError) {
