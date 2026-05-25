@@ -108,6 +108,27 @@ function switchCategoryFilter(category) {
     renderJobsList();
 }
 
+function handleDateFilterChange() {
+    const filterVal = document.getElementById('filter-date').value;
+    const panel = document.getElementById('custom-date-panel');
+    
+    if (filterVal === 'custom') {
+        panel.style.display = 'flex';
+    } else {
+        panel.style.display = 'none';
+    }
+    
+    renderJobsList();
+}
+
+function resetCustomDateRange() {
+    document.getElementById('custom-date-start').value = '';
+    document.getElementById('custom-date-end').value = '';
+    document.getElementById('filter-date').value = 'all';
+    document.getElementById('custom-date-panel').style.display = 'none';
+    renderJobsList();
+}
+
 function updateSelectedCountUI() {
     const countEl = document.getElementById('selected-jobs-count');
     if (countEl) countEl.innerText = selectedJobIds.length;
@@ -252,6 +273,51 @@ function renderJobsList() {
     
     if (platformFilter !== 'All') {
         filtered = filtered.filter(job => job.platform === platformFilter);
+    }
+    
+    // Apply Date Range Filtering
+    const dateFilter = document.getElementById('filter-date') ? document.getElementById('filter-date').value : 'all';
+    if (dateFilter !== 'all') {
+        const now = new Date();
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        
+        if (dateFilter === 'today') {
+            filtered = filtered.filter(job => {
+                const jobTime = new Date(job.created_at || job.updated_at || 0).getTime();
+                return jobTime >= todayStart;
+            });
+        } else if (dateFilter === 'yesterday') {
+            const yesterdayStart = todayStart - 24 * 60 * 60 * 1000;
+            filtered = filtered.filter(job => {
+                const jobTime = new Date(job.created_at || job.updated_at || 0).getTime();
+                return jobTime >= yesterdayStart && jobTime < todayStart;
+            });
+        } else if (dateFilter === 'week') {
+            const last7DaysStart = todayStart - 7 * 24 * 60 * 60 * 1000;
+            filtered = filtered.filter(job => {
+                const jobTime = new Date(job.created_at || job.updated_at || 0).getTime();
+                return jobTime >= last7DaysStart;
+            });
+        } else if (dateFilter === 'custom') {
+            const startVal = document.getElementById('custom-date-start').value;
+            const endVal = document.getElementById('custom-date-end').value;
+            
+            if (startVal) {
+                const startTime = new Date(startVal).getTime();
+                filtered = filtered.filter(job => {
+                    const jobTime = new Date(job.created_at || job.updated_at || 0).getTime();
+                    return jobTime >= startTime;
+                });
+            }
+            if (endVal) {
+                // Add 23h 59m 59s to include the full chosen end day
+                const endTime = new Date(endVal).getTime() + 24 * 60 * 60 * 1000 - 1000;
+                filtered = filtered.filter(job => {
+                    const jobTime = new Date(job.created_at || job.updated_at || 0).getTime();
+                    return jobTime <= endTime;
+                });
+            }
+        }
     }
     
     // Apply Sorting

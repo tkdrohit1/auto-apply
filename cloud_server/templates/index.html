@@ -117,12 +117,19 @@
                     <!-- Left: Matches Feed -->
                     <div class="glass-panel">
                         <div class="panel-header" style="flex-direction: column; align-items: stretch; gap: 12px; padding-bottom: 12px;">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
                                 <h2>Discovered Opportunities</h2>
-                                <div style="display: flex; gap: 8px;">
+                                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
                                     <select id="sort-jobs" style="background: #111827; border: 1px solid #374151; color: white; border-radius: 6px; padding: 4px 8px; font-size: 12px;" onchange="renderJobsList()">
                                         <option value="recent">Most Recent</option>
                                         <option value="score">Highest Match</option>
+                                    </select>
+                                    <select id="filter-date" style="background: #111827; border: 1px solid #374151; color: white; border-radius: 6px; padding: 4px 8px; font-size: 12px;" onchange="handleDateFilterChange()">
+                                        <option value="all">All Time</option>
+                                        <option value="today">Today</option>
+                                        <option value="yesterday">Yesterday</option>
+                                        <option value="week">Last 7 Days</option>
+                                        <option value="custom">Custom Range...</option>
                                     </select>
                                     <select id="filter-platform" style="background: #111827; border: 1px solid #374151; color: white; border-radius: 6px; padding: 4px 8px; font-size: 12px;" onchange="filterJobsList()">
                                         <option value="All">All Platforms</option>
@@ -130,6 +137,15 @@
                                         <option value="Naukri">Naukri</option>
                                     </select>
                                 </div>
+                            </div>
+                            
+                            <!-- Custom Date Range Inputs Panel (hidden by default) -->
+                            <div id="custom-date-panel" style="display: none; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 4px; padding: 6px 12px; background: rgba(255,255,255,0.02); border-radius: 6px; border: 1px solid rgba(255,255,255,0.05); font-size: 12px; width: 100%;">
+                                <span style="color: var(--text-muted); font-size: 11px;">Range:</span>
+                                <input type="date" id="custom-date-start" onchange="renderJobsList()" style="background: #111827; border: 1px solid #374151; color: white; border-radius: 4px; padding: 2px 6px; font-size: 11px;">
+                                <span style="color: var(--text-muted); font-size: 11px;">to</span>
+                                <input type="date" id="custom-date-end" onchange="renderJobsList()" style="background: #111827; border: 1px solid #374151; color: white; border-radius: 4px; padding: 2px 6px; font-size: 11px;">
+                                <button class="btn btn-secondary" onclick="resetCustomDateRange()" style="padding: 2px 6px; font-size: 10px; background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); color: var(--text-main);">Reset</button>
                             </div>
                             
                             <!-- Category Segregation Pills -->
