@@ -255,124 +255,146 @@ function triggerApplyToAll() {
 
 // Render Discovered Job Cards
 function renderJobsList() {
-    const container = document.getElementById('job-list-container');
-    const platformFilter = document.getElementById('filter-platform').value;
-    
-    // Apply Category Segregation
-    let filtered = [];
-    if (activeCategoryFilter === 'strong') {
-        filtered = jobsData.filter(job => job.status === 'Matches' && job.match_score >= 80);
-    } else if (activeCategoryFilter === 'fresh') {
-        filtered = jobsData.filter(job => job.status === 'Matches' && job.match_score < 80);
-    } else if (activeCategoryFilter === 'applied') {
-        filtered = jobsData.filter(job => job.status === 'Applied');
-    } else {
-        // all
-        filtered = jobsData;
-    }
-    
-    if (platformFilter !== 'All') {
-        filtered = filtered.filter(job => job.platform === platformFilter);
-    }
-    
-    // Apply Date Range Filtering
-    const dateFilter = document.getElementById('filter-date') ? document.getElementById('filter-date').value : 'all';
-    if (dateFilter !== 'all') {
-        const now = new Date();
-        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    try {
+        const container = document.getElementById('job-list-container');
+        if (!container) return;
         
-        if (dateFilter === 'today') {
-            filtered = filtered.filter(job => {
-                const jobTime = new Date(job.created_at || job.updated_at || 0).getTime();
-                return jobTime >= todayStart;
-            });
-        } else if (dateFilter === 'yesterday') {
-            const yesterdayStart = todayStart - 24 * 60 * 60 * 1000;
-            filtered = filtered.filter(job => {
-                const jobTime = new Date(job.created_at || job.updated_at || 0).getTime();
-                return jobTime >= yesterdayStart && jobTime < todayStart;
-            });
-        } else if (dateFilter === 'week') {
-            const last7DaysStart = todayStart - 7 * 24 * 60 * 60 * 1000;
-            filtered = filtered.filter(job => {
-                const jobTime = new Date(job.created_at || job.updated_at || 0).getTime();
-                return jobTime >= last7DaysStart;
-            });
-        } else if (dateFilter === 'custom') {
-            const startVal = document.getElementById('custom-date-start').value;
-            const endVal = document.getElementById('custom-date-end').value;
-            
-            if (startVal) {
-                const startTime = new Date(startVal).getTime();
-                filtered = filtered.filter(job => {
-                    const jobTime = new Date(job.created_at || job.updated_at || 0).getTime();
-                    return jobTime >= startTime;
-                });
+        const platformFilter = document.getElementById('filter-platform') ? document.getElementById('filter-platform').value : 'All';
+        
+        // Helper to parse dates strictly as local midnight
+        const parseLocalDate = (dateStr) => {
+            if (!dateStr) return new Date(0);
+            try {
+                const parts = dateStr.substring(0, 10).split('-');
+                if (parts.length === 3) {
+                    return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                }
+            } catch (e) {
+                console.warn("[JobForge] Failed to parse local date string:", dateStr, e);
             }
-            if (endVal) {
-                // Add 23h 59m 59s to include the full chosen end day
-                const endTime = new Date(endVal).getTime() + 24 * 60 * 60 * 1000 - 1000;
+            return new Date(dateStr);
+        };
+        
+        // Apply Category Segregation
+        let filtered = [];
+        if (activeCategoryFilter === 'strong') {
+            filtered = jobsData.filter(job => job.status === 'Matches' && job.match_score >= 80);
+        } else if (activeCategoryFilter === 'fresh') {
+            filtered = jobsData.filter(job => job.status === 'Matches' && job.match_score < 80);
+        } else if (activeCategoryFilter === 'applied') {
+            filtered = jobsData.filter(job => job.status === 'Applied');
+        } else {
+            // all
+            filtered = jobsData;
+        }
+        
+        // Apply Platform Filtering
+        if (platformFilter !== 'All') {
+            filtered = filtered.filter(job => job.platform === platformFilter);
+        }
+        
+        // Apply Date Range Filtering
+        const dateFilter = document.getElementById('filter-date') ? document.getElementById('filter-date').value : 'all';
+        if (dateFilter !== 'all') {
+            const now = new Date();
+            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+            
+            if (dateFilter === 'today') {
                 filtered = filtered.filter(job => {
-                    const jobTime = new Date(job.created_at || job.updated_at || 0).getTime();
-                    return jobTime <= endTime;
+                    const jobTime = parseLocalDate(job.created_at || job.updated_at).getTime();
+                    return jobTime === todayStart;
                 });
+            } else if (dateFilter === 'yesterday') {
+                const yesterdayStart = todayStart - 24 * 60 * 60 * 1000;
+                filtered = filtered.filter(job => {
+                    const jobTime = parseLocalDate(job.created_at || job.updated_at).getTime();
+                    return jobTime === yesterdayStart;
+                });
+            } else if (dateFilter === 'week') {
+                const last7DaysStart = todayStart - 7 * 24 * 60 * 60 * 1000;
+                filtered = filtered.filter(job => {
+                    const jobTime = parseLocalDate(job.created_at || job.updated_at).getTime();
+                    return jobTime >= last7DaysStart;
+                });
+            } else if (dateFilter === 'custom') {
+                const startVal = document.getElementById('custom-date-start') ? document.getElementById('custom-date-start').value : '';
+                const endVal = document.getElementById('custom-date-end') ? document.getElementById('custom-date-end').value : '';
+                
+                if (startVal) {
+                    const startTime = parseLocalDate(startVal).getTime();
+                    filtered = filtered.filter(job => {
+                        const jobTime = parseLocalDate(job.created_at || job.updated_at).getTime();
+                        return jobTime >= startTime;
+                    });
+                }
+                if (endVal) {
+                    const endTime = parseLocalDate(endVal).getTime();
+                    filtered = filtered.filter(job => {
+                        const jobTime = parseLocalDate(job.created_at || job.updated_at).getTime();
+                        return jobTime <= endTime;
+                    });
+                }
             }
         }
-    }
-    
-    // Apply Sorting
-    const sortDropdown = document.getElementById('sort-jobs');
-    const sortBy = sortDropdown ? sortDropdown.value : 'recent';
-    if (sortBy === 'recent') {
-        filtered.sort((a, b) => {
-            const timeA = new Date(a.created_at || a.updated_at || 0).getTime();
-            const timeB = new Date(b.created_at || b.updated_at || 0).getTime();
-            return timeB - timeA;
-        });
-    } else {
-        filtered.sort((a, b) => b.match_score - a.match_score);
-    }
-    
-    if (filtered.length === 0) {
-        container.innerHTML = `
-            <div style="text-align: center; color: var(--text-dark); padding: 40px;">
-                <i class="fa-solid fa-briefcase" style="font-size: 40px; margin-bottom: 12px; display: block;"></i>
-                No opportunities matching category "${activeCategoryFilter}".
-            </div>
-        `;
-        document.getElementById('detail-panel').style.display = 'none';
-        return;
-    }
-    
-    container.innerHTML = filtered.map(job => {
-        const badgeClass = job.match_score >= 85 ? 'high' : (job.match_score >= 70 ? 'med' : 'low');
-        const isActive = job.id === currentSelectedJobId ? 'active' : '';
-        const platformIcon = job.platform === 'LinkedIn' ? 'fa-brands fa-linkedin' : 'fa-solid fa-graduation-cap';
-        const platformColor = job.platform === 'LinkedIn' ? '#0a66c2' : '#ff7900';
-        const isChecked = selectedJobIds.includes(job.id) ? 'checked' : '';
         
-        return `
-            <div class="job-card ${isActive}" onclick="selectJob('${job.id}')">
-                <div class="job-card-header">
-                    <div style="display: flex; align-items: flex-start; gap: 8px;">
-                        <input type="checkbox" class="job-checkbox" data-job-id="${job.id}" ${isChecked} 
-                               onclick="event.stopPropagation(); toggleJobSelection('${job.id}', this.checked)"
-                               style="accent-color: var(--primary); margin-top: 4px; cursor: pointer; width: 15px; height: 15px;">
-                        <div class="job-meta">
-                            <h3>${escapeHtml(job.title)}</h3>
-                            <p>${escapeHtml(job.company)}</p>
+        // Apply Sorting
+        const sortDropdown = document.getElementById('sort-jobs');
+        const sortBy = sortDropdown ? sortDropdown.value : 'recent';
+        if (sortBy === 'recent') {
+            filtered.sort((a, b) => {
+                const timeA = new Date(a.created_at || a.updated_at || 0).getTime();
+                const timeB = new Date(b.created_at || b.updated_at || 0).getTime();
+                return timeB - timeA;
+            });
+        } else {
+            filtered.sort((a, b) => b.match_score - a.match_score);
+        }
+        
+        if (filtered.length === 0) {
+            container.innerHTML = `
+                <div style="text-align: center; color: var(--text-dark); padding: 40px;">
+                    <i class="fa-solid fa-briefcase" style="font-size: 40px; margin-bottom: 12px; display: block;"></i>
+                    No opportunities matching category "${activeCategoryFilter}".
+                </div>
+            `;
+            const detailPanel = document.getElementById('detail-panel');
+            if (detailPanel) detailPanel.style.display = 'none';
+            return;
+        }
+        
+        container.innerHTML = filtered.map(job => {
+            const badgeClass = job.match_score >= 85 ? 'high' : (job.match_score >= 70 ? 'med' : 'low');
+            const isActive = job.id === currentSelectedJobId ? 'active' : '';
+            const platformIcon = job.platform === 'LinkedIn' ? 'fa-brands fa-linkedin' : 'fa-solid fa-graduation-cap';
+            const platformColor = job.platform === 'LinkedIn' ? '#0a66c2' : '#ff7900';
+            const isChecked = selectedJobIds.includes(job.id) ? 'checked' : '';
+            
+            return `
+                <div class="job-card ${isActive}" onclick="selectJob('${job.id}')">
+                    <div class="job-card-header">
+                        <div style="display: flex; align-items: flex-start; gap: 8px;">
+                            <input type="checkbox" class="job-checkbox" data-job-id="${job.id}" ${isChecked} 
+                                   onclick="event.stopPropagation(); toggleJobSelection('${job.id}', this.checked)"
+                                   style="accent-color: var(--primary); margin-top: 4px; cursor: pointer; width: 15px; height: 15px;">
+                            <div class="job-meta">
+                                <h3>${escapeHtml(job.title)}</h3>
+                                <p>${escapeHtml(job.company)}</p>
+                            </div>
                         </div>
+                        <div class="match-badge ${badgeClass}">${job.match_score}% Match</div>
                     </div>
-                    <div class="match-badge ${badgeClass}">${job.match_score}% Match</div>
+                    <div class="job-card-details">
+                        <span><i class="${platformIcon}" style="color: ${platformColor}"></i> ${job.platform}</span>
+                        <span><i class="fa-solid fa-location-dot"></i> ${escapeHtml(job.location || 'Noida')}</span>
+                        <span><i class="fa-solid fa-clock"></i> ${formatRelativeDate(job.created_at)}</span>
+                    </div>
                 </div>
-                <div class="job-card-details">
-                    <span><i class="${platformIcon}" style="color: ${platformColor}"></i> ${job.platform}</span>
-                    <span><i class="fa-solid fa-location-dot"></i> ${escapeHtml(job.location || 'Noida')}</span>
-                    <span><i class="fa-solid fa-clock"></i> ${formatRelativeDate(job.created_at)}</span>
-                </div>
-            </div>
-        `;
-    }).join('');
+            `;
+        }).join('');
+        
+    } catch (err) {
+        console.error("[JobForge] Critical crash inside renderJobsList:", err);
+    }
 }
 
 function filterJobsList() {
