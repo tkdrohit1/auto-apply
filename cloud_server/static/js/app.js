@@ -284,8 +284,8 @@ function renderJobsList() {
         } else if (activeCategoryFilter === 'applied') {
             filtered = jobsData.filter(job => job.status === 'Applied');
         } else {
-            // all
-            filtered = jobsData;
+            // all: show all scanned jobs except those that are Applied or Closed (keeps dashboard matches 100% clean)
+            filtered = jobsData.filter(job => job.status !== 'Applied' && job.status !== 'Closed');
         }
         
         // Apply Platform Filtering
@@ -369,6 +369,16 @@ function renderJobsList() {
             const platformColor = job.platform === 'LinkedIn' ? '#0a66c2' : '#ff7900';
             const isChecked = selectedJobIds.includes(job.id) ? 'checked' : '';
             
+            // Premium status badges
+            let statusBadge = '';
+            if (job.status === 'Applied') {
+                statusBadge = `<span class="match-badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); margin-top: 4px; font-size: 10px; padding: 2px 6px;">Applied</span>`;
+            } else if (job.status === 'External') {
+                statusBadge = `<span class="match-badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); margin-top: 4px; font-size: 10px; padding: 2px 6px;">External Portal</span>`;
+            } else if (job.status === 'Closed') {
+                statusBadge = `<span class="match-badge" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); margin-top: 4px; font-size: 10px; padding: 2px 6px;">Archived</span>`;
+            }
+            
             return `
                 <div class="job-card ${isActive}" onclick="selectJob('${job.id}')">
                     <div class="job-card-header">
@@ -381,7 +391,10 @@ function renderJobsList() {
                                 <p>${escapeHtml(job.company)}</p>
                             </div>
                         </div>
-                        <div class="match-badge ${badgeClass}">${job.match_score}% Match</div>
+                        <div style="display: flex; flex-direction: column; align-items: flex-end;">
+                            <div class="match-badge ${badgeClass}">${job.match_score}% Match</div>
+                            ${statusBadge}
+                        </div>
                     </div>
                     <div class="job-card-details">
                         <span><i class="${platformIcon}" style="color: ${platformColor}"></i> ${job.platform}</span>

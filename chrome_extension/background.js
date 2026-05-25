@@ -192,7 +192,6 @@ async function scrapeNaukriSearch(query, location, maxJobs, settings, crawlId) {
     const card = cardResults[i];
     sendLog("INFO", `[Crawler] Naukri (${i+1}/${cardResults.length}): Fetching description for '${card.title}' at '${card.company}'...`);
     
-    try {
       const response = await new Promise((resolve) => {
         chrome.tabs.sendMessage(tab.id, { action: "FETCH_DETAIL", url: card.url }, (res) => {
           if (chrome.runtime.lastError) {
@@ -204,11 +203,14 @@ async function scrapeNaukriSearch(query, location, maxJobs, settings, crawlId) {
         });
       });
       const fullDesc = response ? response.description : "";
+      const isEasyApply = response && response.isEasyApply !== undefined ? response.isEasyApply : true;
       card.description = fullDesc || `Job title: ${card.title}. Company: ${card.company}. Please visit Naukri page for details.`;
+      card.is_easy_apply = isEasyApply;
       completedJobs.push(card);
     } catch (e) {
       sendLog("WARNING", `[Crawler] Naukri: Failed to fetch detail JD: ${e.message}`);
       card.description = `Job title: ${card.title}. Company: ${card.company}. Location: ${card.location}.`;
+      card.is_easy_apply = true;
       completedJobs.push(card);
     }
     
@@ -275,11 +277,14 @@ async function scrapeLinkedInSearch(query, location, maxJobs, settings, crawlId)
         });
       });
       const fullDesc = response ? response.description : "";
+      const isEasyApply = response && response.isEasyApply !== undefined ? response.isEasyApply : true;
       card.description = fullDesc || `Job title: ${card.title}. Company: ${card.company}. See LinkedIn detail page for full JD.`;
+      card.is_easy_apply = isEasyApply;
       completedJobs.push(card);
     } catch (e) {
       sendLog("WARNING", `[Crawler] LinkedIn: Failed to fetch detail JD: ${e.message}`);
       card.description = `Job title: ${card.title}. Company: ${card.company}. Location: ${card.location}.`;
+      card.is_easy_apply = true;
       completedJobs.push(card);
     }
     

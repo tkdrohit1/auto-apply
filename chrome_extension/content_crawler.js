@@ -40,14 +40,30 @@ async function fetchNaukriOrLinkedInDetail(url) {
     const res = await fetch(url);
     const html = await res.text();
     
+    let description = "";
+    let isEasyApply = true;
+    
     // Scrape description text using DOMParser selectors or regex match
     if (url.includes("naukri.com")) {
       const descRegex = /<section class="job-desc">([\s\S]*?)<\/section>/i;
       const match = html.match(descRegex);
-      if (match) return cleanHtmlText(match[1]);
+      if (match) {
+        description = cleanHtmlText(match[1]);
+      } else {
+        const pMatches = [...html.matchAll(/<p class="dang-art-html">([\s\S]*?)<\/p>/gi)];
+        if (pMatches.length > 0) {
+          description = pMatches.map(m => cleanHtmlText(m[1])).join("\n");
+        }
+      }
       
-      const pMatches = [...html.matchAll(/<p class="dang-art-html">([\s\S]*?)<\/p>/gi)];
-      if (pMatches.length > 0) return pMatches.map(m => cleanHtmlText(m[1])).join("\n");
+      // If HTML has indicators of external company portal redirection, mark isEasyApply as false
+      const isExternal = html.toLowerCase().includes("company website") || 
+                         html.toLowerCase().includes("company site") || 
+                         html.toLowerCase().includes("apply on company") || 
+                         html.toLowerCase().includes("register and apply") || 
+                         html.toLowerCase().includes("register & apply");
+      isEasyApply = !isExternal;
+      
     } else if (url.includes("linkedin.com")) {
       const descSelectors = [
         /<div class="show-more-less-html__markup show-more-less-html__markup--expanded">([\s\S]*?)<\/div>/i,
@@ -56,10 +72,19 @@ async function fetchNaukriOrLinkedInDetail(url) {
       ];
       for (const regex of descSelectors) {
         const match = html.match(regex);
-        if (match) return cleanHtmlText(match[1]);
+        if (match) {
+          description = cleanHtmlText(match[1]);
+          break;
+        }
       }
+      
+      // If it doesn't contain "easy apply", "easy-apply", or the Easy Apply button class, it's external
+      isEasyApply = html.toLowerCase().includes("easy apply") || 
+                    html.toLowerCase().includes("easy-apply") || 
+                    html.toLowerCase().includes("jobs-apply-button");
     }
-    return "";
+    
+    return { description: description, isEasyApply: isEasyApply };
   } catch (e) {
     console.error("[JobForge Crawler] In-page same-origin fetch crashed: ", e);
     throw e;
@@ -280,11 +305,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
   } else if (message.action === "FETCH_DETAIL") {
     fetchNaukriOrLinkedInDetail(message.url)
-      .then(description => {
-        sendResponse({ description: description });
+      .then(resObj => {
+        sendResponse(resObj);
       })
       .catch(err => {
-        sendResponse({ description: "", error: err.message });
+        sendResponse({ description: "", isEasyApply: true, error: err.message });
       });
     return true; 
   }

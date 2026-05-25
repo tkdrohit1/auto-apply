@@ -146,6 +146,11 @@ def post_upload_jobs(raw_jobs: List[dict], background_tasks: BackgroundTasks):
                 # Execute AI score
                 match_res = ai_matcher.evaluate_job(title, company, desc, location)
                 
+                is_easy_apply = r_job.get("is_easy_apply", True)
+                status = "Matches" if is_easy_apply else "External"
+                if not is_easy_apply:
+                    bridge_logger("INFO", f"[AI Matcher] Job '{title}' at '{company}' requires external company portal application. Storing as status 'External'.")
+                
                 job_data = {
                     "id": r_job.get("id"),
                     "title": title,
@@ -160,7 +165,7 @@ def post_upload_jobs(raw_jobs: List[dict], background_tasks: BackgroundTasks):
                     "matched_skills": ", ".join(match_res.get("matched_skills", [])),
                     "missing_skills": ", ".join(match_res.get("missing_skills", [])),
                     "cover_letter": match_res.get("cover_letter", ""),
-                    "status": "Matches"
+                    "status": status
                 }
                 
                 database.add_job(job_data)
