@@ -35,6 +35,152 @@ async function waitForSelectors(selectorsArray, maxWaitMs = 10000) {
   return null;
 }
 
+// ---------------- QUESTIONNAIRE LEARNING ENGINE HELPERS ----------------
+
+function cleanQuestionText(text) {
+  if (!text) return "";
+  return text.toLowerCase()
+             .replace(/[^a-z0-9]/gi, " ")
+             .replace(/\s+/g, " ")
+             .trim();
+}
+
+function findLearnedAnswer(questionText, learnedAnswers) {
+  const cleanedQ = cleanQuestionText(questionText);
+  if (!cleanedQ) return null;
+  
+  // 1. Exact match
+  if (learnedAnswers[cleanedQ]) {
+    return learnedAnswers[cleanedQ];
+  }
+  
+  // 2. Fuzzy substring match (must be longer than 8 chars to be meaningful)
+  for (const [stashedQ, answer] of Object.entries(learnedAnswers)) {
+    if (stashedQ.length > 8 && cleanedQ.length > 8) {
+      if (cleanedQ.includes(stashedQ) || stashedQ.includes(cleanedQ)) {
+        logToCloud("INFO", `[Learning Engine] Fuzzy matched question: "${questionText}" with history. Reusing stashed answer: "${answer}"`);
+        return answer;
+      }
+    }
+  }
+  return null;
+}
+
+function getLabelForInput(element) {
+  if (!element) return "";
+  try {
+    const id = element.getAttribute("id");
+    if (id) {
+      const label = document.querySelector(`label[for='${id}']`);
+      if (label && label.innerText) return label.innerText.trim();
+    }
+    // Fallback 1: closest form element container label
+    const container = element.closest(".fb-form-element-container, .form-field, .jobs-easy-apply-form-section, div");
+    if (container) {
+      const label = container.querySelector("label");
+      if (label && label.innerText) return label.innerText.trim();
+    }
+    // Fallback 2: parent element text
+    if (element.parentElement && element.parentElement.tagName === "LABEL") {
+      return element.parentElement.innerText.trim();
+    }
+  } catch (e) {
+    console.error("[JobForge Applier] Error finding label: ", e);
+  }
+  return "";
+}
+
+async function learnFormFields() {
+  const learned = {};
+  
+  try {
+    // 1. Scan text, textarea, email, tel, number inputs
+    const inputs = document.querySelectorAll("input[type='text'], textarea, input[type='email'], input[type='tel'], input[type='number']");
+    inputs.forEach(input => {
+      const val = input.value ? input.value.trim() : "";
+      if (!val) return;
+      
+      const label = getLabelForInput(input);
+      if (label) {
+        learned[cleanQuestionText(label)] = val;
+      }
+    });
+    
+    // 2. Scan select dropdowns
+    const selects = document.querySelectorAll("select");
+    selects.forEach(select => {
+      const val = select.value ? select.value.trim() : "";
+      if (!val) return;
+      
+      const optText = select.options[select.selectedIndex] ? select.options[select.selectedIndex].text.trim() : "";
+      const label = getLabelForInput(select);
+      if (label && optText) {
+        learned[cleanQuestionText(label)] = optText;
+      }
+    });
+    
+    // 3. Scan radio button groups
+    const fieldsets = document.querySelectorAll("fieldset, .fb-radio-buttons, [role='radiogroup']");
+    fieldsets.forEach(fs => {
+      let qText = "";
+      const legend = fs.querySelector("legend, .fb-form-element-label, [id*='legend']");
+      if (legend) {
+        qText = legend.innerText.trim();
+      } else {
+        // Fallback: search for label inside or preceding
+        const label = fs.querySelector("label");
+        if (label) qText = label.innerText.trim();
+      }
+      
+      if (!qText) return;
+      
+      const checkedRadio = fs.querySelector("input[type='radio']:checked");
+      if (checkedRadio) {
+        const radioLabel = fs.querySelector(`label[for='${checkedRadio.id}']`) || checkedRadio.closest("label");
+        if (radioLabel) {
+          learned[cleanQuestionText(qText)] = radioLabel.innerText.trim();
+        }
+      }
+    });
+    
+    if (Object.keys(learned).length > 0) {
+      logToCloud("INFO", `[Learning Engine] Captured ${Object.keys(learned).length} form answers. Saving to reference database...`);
+      chrome.storage.local.get("learned_answers", (data) => {
+        const current = data.learned_answers || {};
+        const updated = { ...current, ...learned };
+        chrome.storage.local.set({ "learned_answers": updated }, () => {
+          console.log("[Learning Engine] Answers saved successfully:", learned);
+        });
+      });
+    }
+  } catch (err) {
+    console.error("[JobForge Applier] Error during learnFormFields: ", err);
+  }
+}
+
+function attachLearningInterceptors() {
+  try {
+    const dialogs = document.querySelectorAll(".jobs-easy-apply-modal, [role='dialog'], .apply-questionnaire, .chatbot-dialog, .fb-form-element-container, form");
+    dialogs.forEach(dialog => {
+      const buttons = Array.from(dialog.querySelectorAll("button"));
+      buttons.forEach(btn => {
+        const txt = btn.innerText ? btn.innerText.trim().toLowerCase() : "";
+        if (txt === "next" || txt === "continue" || txt === "review" || txt === "submit application" || txt === "submit" || txt === "apply") {
+          if (!btn.hasAttribute("data-learning-bound")) {
+            btn.setAttribute("data-learning-bound", "true");
+            btn.addEventListener("click", () => {
+              logToCloud("INFO", "[Learning Engine] Click detected on navigation/submit. Stashing form entries...");
+              learnFormFields();
+            });
+          }
+        }
+      });
+    });
+  } catch (err) {
+    console.error("[JobForge Applier] Error attaching click interceptors: ", err);
+  }
+}
+
 // ---------------- LINKEDIN EASY APPLY FLOW ----------------
 async function runLinkedInEasyApply(job, settings) {
   logToCloud("INFO", "[Applier] LinkedIn: Searching for 'Easy Apply' button...");
@@ -97,7 +243,8 @@ async function runLinkedInEasyApply(job, settings) {
     
     // Autofill visible fields
     logToCloud("INFO", `[Applier] Autofilling Easy Apply form step ${step + 1}...`);
-    autofillLinkedInFormFields(settings);
+    await autofillFormFields(settings);
+    attachLearningInterceptors();
     
     // Search buttons
     const buttons = Array.from(modal.querySelectorAll("button"));
@@ -157,51 +304,55 @@ async function runLinkedInEasyApply(job, settings) {
   return false;
 }
 
-// Autofill LinkedIn modal inputs
-function autofillLinkedInFormFields(settings) {
+// Autofill dynamic inputs (Universal for LinkedIn Easy Apply and Naukri questionnaire popups)
+async function autofillFormFields(settings) {
+  // Query Chrome local storage for historically learned answers
+  const data = await new Promise(resolve => chrome.storage.local.get("learned_answers", resolve));
+  const learnedAnswers = data.learned_answers || {};
+  
+  logToCloud("INFO", `[Learning Engine] Querying stashed intelligence dictionary containing ${Object.keys(learnedAnswers).length} entries...`);
+
   // 1. Text fields and Textareas
-  const inputs = document.querySelectorAll("input[type='text'], textarea, input[type='email'], input[type='tel']");
+  const inputs = document.querySelectorAll("input[type='text'], textarea, input[type='email'], input[type='tel'], input[type='number']");
   inputs.forEach(input => {
     try {
       if (input.value && input.value.trim() !== "") return; // Don't overwrite existing
       
-      const id = input.getAttribute("id");
-      let labelText = "";
-      if (id) {
-        const label = document.querySelector(`label[for='${id}']`);
-        if (label) labelText = label.innerText.toLowerCase();
+      const labelText = getLabelForInput(input);
+      if (!labelText) return;
+      
+      // Attempt fuzzy stashed memory match
+      const learned = findLearnedAnswer(labelText, learnedAnswers);
+      if (learned) {
+        input.value = learned;
+        triggerInputChange(input);
+        logToCloud("IMPORTANT", `[Learning Engine] Universal Auto-filled Text field: "${labelText}" -> "${learned}"`);
+        return; // Success! Skip fallbacks
       }
       
-      if (!labelText) {
-        // Fallback: search closest parent label text
-        const parent = input.closest(".fb-form-element-container");
-        if (parent) {
-          const l = parent.querySelector("label");
-          if (l) labelText = l.innerText.toLowerCase();
-        }
-      }
-      
-      if (labelText.includes("experience") || labelText.includes("years")) {
-        if (labelText.includes("python")) {
+      // Static defaults fallbacks if no stashed memory exists
+      const lowerLabel = labelText.toLowerCase();
+      if (lowerLabel.includes("experience") || lowerLabel.includes("years")) {
+        if (lowerLabel.includes("python")) {
           input.value = "4";
-        } else if (labelText.includes("java")) {
+        } else if (lowerLabel.includes("java")) {
           input.value = "3";
-        } else if (labelText.includes("ai") || labelText.includes("llm")) {
+        } else if (lowerLabel.includes("ai") || lowerLabel.includes("llm")) {
           input.value = "2";
         } else {
           input.value = "4"; // Default
         }
         triggerInputChange(input);
-      } else if (labelText.includes("salary") || labelText.includes("expected")) {
+      } else if (lowerLabel.includes("salary") || lowerLabel.includes("expected")) {
         input.value = "Negotiable";
         triggerInputChange(input);
-      } else if (labelText.includes("notice") || labelText.includes("days")) {
+      } else if (lowerLabel.includes("notice") || lowerLabel.includes("days")) {
         input.value = "30 days";
         triggerInputChange(input);
-      } else if (labelText.includes("website") || labelText.includes("portfolio")) {
+      } else if (lowerLabel.includes("website") || lowerLabel.includes("portfolio")) {
         input.value = "https://github.com/tkdrohit1";
         triggerInputChange(input);
-      } else if (labelText.includes("linkedin")) {
+      } else if (lowerLabel.includes("linkedin")) {
         input.value = "https://linkedin.com/in/tkdrohit";
         triggerInputChange(input);
       }
@@ -211,20 +362,43 @@ function autofillLinkedInFormFields(settings) {
   });
 
   // 2. Radio Yes/No buttons
-  const fieldsets = document.querySelectorAll("fieldset");
+  const fieldsets = document.querySelectorAll("fieldset, .fb-radio-buttons, [role='radiogroup']");
   fieldsets.forEach(fs => {
     try {
-      const legend = fs.querySelector("legend");
-      const question = legend ? legend.innerText.toLowerCase() : "";
+      let qText = "";
+      const legend = fs.querySelector("legend, .fb-form-element-label, [id*='legend']");
+      if (legend) {
+        qText = legend.innerText.trim();
+      } else {
+        const label = fs.querySelector("label");
+        if (label) qText = label.innerText.trim();
+      }
       
+      if (!qText) return;
+      
+      // Attempt fuzzy stashed memory match
+      const learned = findLearnedAnswer(qText, learnedAnswers);
+      if (learned) {
+        const labels = Array.from(fs.querySelectorAll("label"));
+        const matchingBtn = labels.find(l => l.innerText && l.innerText.trim().toLowerCase() === learned.toLowerCase()) || 
+                            fs.querySelector(`input[value='${learned}'], label[for*='${learned.toLowerCase()}']`);
+        if (matchingBtn) {
+          clickRadioElement(matchingBtn, fs, learned);
+          logToCloud("IMPORTANT", `[Learning Engine] Universal Auto-selected Radio: "${qText}" -> "${learned}"`);
+          return; // Success! Skip fallback
+        }
+      }
+      
+      // Static defaults fallbacks if no stashed memory exists
+      const lowerQ = qText.toLowerCase();
       const labels = Array.from(fs.querySelectorAll("label"));
       let yesBtn = labels.find(l => l.innerText && l.innerText.trim().toLowerCase() === "yes") || 
                    fs.querySelector("input[value='Yes'], label[for*='yes']");
       let noBtn = labels.find(l => l.innerText && l.innerText.trim().toLowerCase() === "no") || 
                   fs.querySelector("input[value='No'], label[for*='no']");
       
-      if (question.includes("authorized to work") || question.includes("sponsorship") === false) {
-        if (question.includes("sponsor")) {
+      if (lowerQ.includes("authorized to work") || lowerQ.includes("sponsorship") === false) {
+        if (lowerQ.includes("sponsor")) {
           clickRadioElement(noBtn, fs, "No");
         } else {
           clickRadioElement(yesBtn, fs, "Yes");
@@ -241,6 +415,27 @@ function autofillLinkedInFormFields(settings) {
   const selects = document.querySelectorAll("select");
   selects.forEach(select => {
     try {
+      if (select.value && select.value.trim() !== "") return; // Don't overwrite existing
+      
+      const labelText = getLabelForInput(select);
+      if (labelText) {
+        // Attempt fuzzy stashed memory match
+        const learned = findLearnedAnswer(labelText, learnedAnswers);
+        if (learned) {
+          const optionToSelect = Array.from(select.options).find(opt => 
+            opt.text.trim().toLowerCase() === learned.toLowerCase() || 
+            opt.value.trim().toLowerCase() === learned.toLowerCase()
+          );
+          if (optionToSelect) {
+            select.value = optionToSelect.value;
+            triggerInputChange(select);
+            logToCloud("IMPORTANT", `[Learning Engine] Universal Auto-selected Dropdown: "${labelText}" -> "${optionToSelect.text}"`);
+            return;
+          }
+        }
+      }
+      
+      // Fallback
       if (select.value === "") {
         if (select.options.length > 1) {
           select.selectedIndex = 1;
@@ -255,7 +450,7 @@ function autofillLinkedInFormFields(settings) {
   // 4. File uploads notification
   const fileInput = document.querySelector("input[type='file']");
   if (fileInput) {
-    logToCloud("INFO", "[Applier] Resume upload field detected. LinkedIn will default select your pre-uploaded profile resume. Confirm if chosen.");
+    logToCloud("INFO", "[Applier] Resume upload field detected. System will default select your pre-uploaded profile resume if available.");
   }
 }
 
@@ -329,6 +524,11 @@ async function runNaukriApply(job, settings) {
   const popup = document.querySelector(".apply-questionnaire, .chatbot-dialog, iframe");
   if (popup) {
     logToCloud("WARNING", "[Applier] Naukri opened custom questionnaire popup.");
+    
+    // Autofill visible fields using learned questions!
+    await autofillFormFields(settings);
+    attachLearningInterceptors();
+    
     const reviewMode = settings.review_mode !== false;
     
     if (reviewMode) {
