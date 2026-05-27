@@ -201,6 +201,33 @@
                         </div>
                         
                         <div class="detail-content">
+                            <!-- Recruiter Email Referral Section (SMTP/Naukri flow) -->
+                            <div id="detail-email-referral-box" style="display: none; background: rgba(245, 158, 11, 0.1); border: 1px dashed rgba(245, 158, 11, 0.3); border-radius: 8px; padding: 12px; margin-bottom: 16px; font-size: 13px;">
+                                <div style="display: flex; align-items: center; gap: 8px; color: #f59e0b; font-weight: 600; margin-bottom: 8px;">
+                                    <i class="fa-solid fa-envelope-open-text"></i>
+                                    <span>Naukri Direct Referral Required</span>
+                                </div>
+                                <p style="margin: 0 0 10px 0; color: var(--text-muted); font-size: 12px;">This posting requires direct HR referral email. Provide a valid email address to trigger SMTP dispatch.</p>
+                                <div style="display: flex; gap: 8px;">
+                                    <input type="email" id="input-hr-email" placeholder="hr@company.com" style="flex: 1; background: #111827; border: 1px solid #374151; color: white; border-radius: 4px; padding: 6px 10px; font-size: 12px;">
+                                    <button class="btn btn-primary" style="padding: 6px 12px; font-size: 12px; border-radius: 4px;" onclick="submitHrEmail()">Save & Send</button>
+                                </div>
+                            </div>
+
+                            <!-- Direct Email Referral Available (SMTP/Naukri flow) -->
+                            <div id="detail-email-send-box" style="display: none; background: rgba(16, 185, 129, 0.1); border: 1px dashed rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 12px; margin-bottom: 16px; font-size: 13px;">
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                                    <div style="display: flex; align-items: center; gap: 8px; color: #10b981; font-weight: 600;">
+                                        <i class="fa-solid fa-circle-check"></i>
+                                        <span>HR Contact Discovered</span>
+                                    </div>
+                                    <span id="detail-hr-email-text" style="color: white; font-family: monospace; font-size: 12px;">hr@company.com</span>
+                                </div>
+                                <button class="btn btn-primary" style="width: 100%; padding: 6px 12px; font-size: 12px; border-radius: 4px; background: #10b981; border-color: #10b981;" id="btn-send-email-referral" onclick="triggerEmailReferral()">
+                                    <i class="fa-solid fa-paper-plane"></i> Send Direct Email Referral
+                                </button>
+                            </div>
+
                             <!-- Custom Actions -->
                             <div style="display: flex; gap: 12px;">
                                 <button class="btn btn-primary" style="flex: 1;" id="btn-apply-now" onclick="triggerAutoApply()">
@@ -447,6 +474,37 @@
                             <div class="badge-row" id="container-locations">
                                 <!-- Dynamic tags -->
                             </div>
+                        </div>
+
+                        <div style="margin-top: 24px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 20px;">
+                            <h2 style="font-family: var(--font-display); font-size: 16px;"><i class="fa-solid fa-envelope" style="color: var(--primary); margin-right: 8px;"></i> SMTP HR Referral (Naukri Flow)</h2>
+                            <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px; margin-bottom: 12px;">Configure SMTP to send direct referral emails with resume PDF attached.</p>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 8px;">
+                            <div class="form-group" style="margin-bottom: 8px;">
+                                <label for="settings-smtp-host">SMTP Host</label>
+                                <input type="text" id="settings-smtp-host" placeholder="smtp.gmail.com" style="padding: 4px 8px; font-size: 12px; background: #111827; border: 1px solid #374151; color: white; border-radius: 4px;">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 8px;">
+                                <label for="settings-smtp-port">Port</label>
+                                <input type="text" id="settings-smtp-port" placeholder="465" style="padding: 4px 8px; font-size: 12px; background: #111827; border: 1px solid #374151; color: white; border-radius: 4px;">
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 8px;">
+                            <label for="settings-smtp-email">Sender Email</label>
+                            <input type="email" id="settings-smtp-email" placeholder="your_email@gmail.com" style="padding: 4px 8px; font-size: 12px; background: #111827; border: 1px solid #374151; color: white; border-radius: 4px;">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 8px;">
+                            <label for="settings-smtp-password">App Password</label>
+                            <input type="password" id="settings-smtp-password" placeholder="••••••••••••••••" style="padding: 4px 8px; font-size: 12px; background: #111827; border: 1px solid #374151; color: white; border-radius: 4px;">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 8px;">
+                            <label for="settings-resume-pdf-path">Local PDF Resume Path</label>
+                            <input type="text" id="settings-resume-pdf-path" placeholder="C:\path\to\resume.pdf" style="padding: 4px 8px; font-size: 12px; background: #111827; border: 1px solid #374151; color: white; border-radius: 4px;">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 16px;">
+                            <label for="settings-resume-short-link">Hosted Resume Short Link (LinkedIn)</label>
+                            <input type="text" id="settings-resume-short-link" placeholder="https://drive.google.com/..." style="padding: 4px 8px; font-size: 12px; background: #111827; border: 1px solid #374151; color: white; border-radius: 4px;">
                         </div>
 
                         <div class="form-group" style="margin-top: 24px;">

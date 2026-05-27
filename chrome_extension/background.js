@@ -165,7 +165,7 @@ function stopCrawler() {
 async function scrapeNaukriSearch(query, location, maxJobs, settings, crawlId) {
   const queryEncoded = query.replace(/\s+/g, "-").toLowerCase();
   const locEncoded = location.replace(/\s+/g, "-").toLowerCase();
-  const searchUrl = `https://www.naukri.com/${queryEncoded}-jobs-in-${locEncoded}?k=${encodeURIComponent(query)}`;
+  const searchUrl = `https://www.naukri.com/${queryEncoded}-jobs-in-${locEncoded}?k=${encodeURIComponent(query)}&sort=dd`;
   
   sendLog("INFO", "[Crawler] Naukri: Opening search tab in foreground...");
   const tab = await createForegroundTab(searchUrl);
@@ -192,7 +192,6 @@ async function scrapeNaukriSearch(query, location, maxJobs, settings, crawlId) {
     const card = cardResults[i];
     sendLog("INFO", `[Crawler] Naukri (${i+1}/${cardResults.length}): Fetching description for '${card.title}' at '${card.company}'...`);
     
-    try {
       const response = await new Promise((resolve) => {
         chrome.tabs.sendMessage(tab.id, { action: "FETCH_DETAIL", url: card.url }, (res) => {
           if (chrome.runtime.lastError) {
@@ -205,13 +204,16 @@ async function scrapeNaukriSearch(query, location, maxJobs, settings, crawlId) {
       });
       const fullDesc = response ? response.description : "";
       const isEasyApply = response && response.isEasyApply !== undefined ? response.isEasyApply : true;
+      const hrEmail = response && response.hrEmail !== undefined ? response.hrEmail : "";
       card.description = fullDesc || `Job title: ${card.title}. Company: ${card.company}. Please visit Naukri page for details.`;
       card.is_easy_apply = isEasyApply;
+      card.hr_email = hrEmail;
       completedJobs.push(card);
     } catch (e) {
       sendLog("WARNING", `[Crawler] Naukri: Failed to fetch detail JD: ${e.message}`);
       card.description = `Job title: ${card.title}. Company: ${card.company}. Location: ${card.location}.`;
       card.is_easy_apply = true;
+      card.hr_email = "";
       completedJobs.push(card);
     }
     
@@ -226,7 +228,7 @@ async function scrapeNaukriSearch(query, location, maxJobs, settings, crawlId) {
 async function scrapeLinkedInSearch(query, location, maxJobs, settings, crawlId) {
   const queryEncoded = encodeURIComponent(query);
   const locEncoded = encodeURIComponent(location);
-  const searchUrl = `https://www.linkedin.com/jobs/search/?keywords=${queryEncoded}&location=${locEncoded}`;
+  const searchUrl = `https://www.linkedin.com/jobs/search/?keywords=${queryEncoded}&location=${locEncoded}&sortBy=DD`;
   
   sendLog("INFO", "[Crawler] LinkedIn: Opening search tab in background...");
   let tab = await createBackgroundTab(searchUrl);
@@ -243,7 +245,7 @@ async function scrapeLinkedInSearch(query, location, maxJobs, settings, crawlId)
     sendLog("WARNING", "[Crawler] LinkedIn: Authwall or standard layout blocked card scraping. Trying public guest search API fallback...");
     chrome.tabs.remove(tab.id);
     
-    const guestApiUrl = `https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords=${queryEncoded}&location=${locEncoded}&start=0`;
+    const guestApiUrl = `https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords=${queryEncoded}&location=${locEncoded}&start=0&sortBy=DD`;
     const fallbackTab = await createBackgroundTab(guestApiUrl);
     activeTabId = fallbackTab.id;
     
@@ -279,13 +281,16 @@ async function scrapeLinkedInSearch(query, location, maxJobs, settings, crawlId)
       });
       const fullDesc = response ? response.description : "";
       const isEasyApply = response && response.isEasyApply !== undefined ? response.isEasyApply : true;
+      const hrEmail = response && response.hrEmail !== undefined ? response.hrEmail : "";
       card.description = fullDesc || `Job title: ${card.title}. Company: ${card.company}. See LinkedIn detail page for full JD.`;
       card.is_easy_apply = isEasyApply;
+      card.hr_email = hrEmail;
       completedJobs.push(card);
     } catch (e) {
       sendLog("WARNING", `[Crawler] LinkedIn: Failed to fetch detail JD: ${e.message}`);
       card.description = `Job title: ${card.title}. Company: ${card.company}. Location: ${card.location}.`;
       card.is_easy_apply = true;
+      card.hr_email = "";
       completedJobs.push(card);
     }
     

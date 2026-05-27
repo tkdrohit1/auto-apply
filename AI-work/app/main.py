@@ -102,7 +102,7 @@ def serialize_lead(lead: Lead) -> dict:
 @app.get("/", response_class=HTMLResponse)
 async def serve_dashboard(request: Request):
     """Renders the main glassmorphic HTML dashboard."""
-    return templates.TemplateResponse("dashboard.html", {"request": request, "openai_enabled": settings.is_openai_enabled})
+    return templates.TemplateResponse(request, "dashboard.html", {"openai_enabled": settings.is_openai_enabled})
 
 
 # Rest API Endpoints

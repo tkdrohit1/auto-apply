@@ -84,7 +84,12 @@ async function fetchNaukriOrLinkedInDetail(url) {
                     html.toLowerCase().includes("jobs-apply-button");
     }
     
-    return { description: description, isEasyApply: isEasyApply };
+    // Extract any plain text email address in the page HTML (recruiter email checks)
+    const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i;
+    const emailMatch = html.match(emailRegex);
+    const hrEmail = emailMatch ? emailMatch[0] : "";
+    
+    return { description: description, isEasyApply: isEasyApply, hrEmail: hrEmail };
   } catch (e) {
     console.error("[JobForge Crawler] In-page same-origin fetch crashed: ", e);
     throw e;

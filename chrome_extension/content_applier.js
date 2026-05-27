@@ -181,127 +181,228 @@ function attachLearningInterceptors() {
   }
 }
 
-// ---------------- LINKEDIN EASY APPLY FLOW ----------------
-async function runLinkedInEasyApply(job, settings) {
-  logToCloud("INFO", "[Applier] LinkedIn: Searching for 'Easy Apply' button...");
+// ---------------- LINKEDIN PEOPLE REFERRAL FLOW ----------------
+
+async function runLinkedInReferralFlow(job, settings) {
+  logToCloud("INFO", "[Applier] Starting LinkedIn Proactive Referral & Networking flow...");
   
-  const easyApplySelectors = [
-    "button.jobs-apply-button",
-    ".jobs-apply-button button"
-  ];
-  
-  // Wait up to 6 seconds for the Easy Apply button to render
-  let applyBtn = await waitForSelectors(easyApplySelectors, 6000);
-  
-  // Alternative: search all buttons containing text
-  if (!applyBtn) {
-    const btns = Array.from(document.querySelectorAll("button, span"));
-    applyBtn = btns.find(b => b.innerText && b.innerText.trim().toLowerCase() === "easy apply");
+  // 1. Locate Company Page URL on the job detail page
+  let companyUrl = "";
+  const companyLink = document.querySelector("a[href*='/company/']");
+  if (companyLink) {
+    companyUrl = companyLink.getAttribute("href");
+    if (companyUrl && !companyUrl.startsWith("http")) {
+      companyUrl = "https://www.linkedin.com" + companyUrl;
+    }
+    // Clean company URL to base
+    if (companyUrl.includes("?")) {
+      companyUrl = companyUrl.split("?")[0];
+    }
+    if (!companyUrl.endsWith("/")) {
+      companyUrl += "/";
+    }
   }
   
-  if (!applyBtn) {
-    // Check if already applied
-    const spans = Array.from(document.querySelectorAll("span"));
-    const alreadyApplied = spans.find(s => s.innerText && s.innerText.toLowerCase().includes("applied")) || 
-                           document.querySelector(".artdeco-inline-feedback--success");
-    if (alreadyApplied) {
-      logToCloud("INFO", `[Applier] Already applied to '${job.title}' on LinkedIn.`);
-      return true;
-    }
-    logToCloud("WARNING", "[Applier] LinkedIn: Could not find 'Easy Apply' button. This job may require external corporate site application.");
+  if (!companyUrl) {
+    logToCloud("WARNING", "[Applier] Could not locate Company Page URL on this job page. Aborting.");
     return false;
   }
   
-  logToCloud("INFO", "[Applier] LinkedIn: Clicking 'Easy Apply'...");
-  applyBtn.click();
-  await delay(2000);
+  const peopleUrl = companyUrl + "people/";
+  logToCloud("INFO", `[Applier] Navigating active tab to Company People Directory: ${peopleUrl}`);
   
-  const maxSteps = 10;
-  let step = 0;
+  // Initialize stateful session before redirecting!
+  chrome.storage.local.set({
+    "active_referral_session": {
+      job: job,
+      settings: settings,
+      phase: "SEARCH_PEOPLE"
+    }
+  }, () => {
+    window.location.href = peopleUrl;
+  });
   
-  while (step < maxSteps) {
-    // Check for success feedback
-    const successSelector = document.querySelector(".artdeco-inline-feedback--success") || 
-                            (document.body.innerText.includes("Application sent") || 
-                             document.body.innerText.includes("application was sent"));
-    if (successSelector) {
-      logToCloud("INFO", "[Applier] LinkedIn: Application sent successfully!");
-      return true;
+  // Wait to let page unload
+  await delay(5000);
+  return true;
+}
+
+async function continueLinkedInReferralFlow(session) {
+  const job = session.job;
+  const settings = session.settings;
+  
+  logToCloud("INFO", "[Applier] Company People directory loaded. Waiting 5 seconds for page hydration...");
+  await delay(5000);
+  
+  // 1. Locate employee search bar
+  const searchSelectors = [
+    ".org-people-find-peers-search-box input",
+    "input[placeholder*='Search employees']",
+    "input[id*='people-search']",
+    ".org-people-bar input",
+    "input[type='search']"
+  ];
+  
+  let searchInput = await waitForSelectors(searchSelectors, 8000);
+  if (!searchInput) {
+    // Search general input fields inside org people section
+    searchInput = document.querySelector("input[type='text']");
+  }
+  
+  if (!searchInput) {
+    logToCloud("WARNING", "[Applier] Could not locate employee search box. Scanning visible contacts directly...");
+  } else {
+    // Search for recruiter
+    logToCloud("INFO", "[Applier] Searching for recruiting contact: 'Recruiter'...");
+    searchInput.focus();
+    searchInput.value = "Recruiter";
+    triggerInputChange(searchInput);
+    
+    // Simulate Enter Key to filter
+    searchInput.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Enter", code: "Enter", keyCode: 13 }));
+    searchInput.dispatchEvent(new KeyboardEvent("keypress", { bubbles: true, cancelable: true, key: "Enter", code: "Enter", keyCode: 13 }));
+    searchInput.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, cancelable: true, key: "Enter", code: "Enter", keyCode: 13 }));
+    
+    // Try clicking search magnifier button if present
+    const searchParent = searchInput.parentElement;
+    if (searchParent) {
+      const searchBtn = searchParent.querySelector("button, svg, .search-icon");
+      if (searchBtn) searchBtn.click();
     }
     
-    // Check if modal is open
-    const modal = document.querySelector(".jobs-easy-apply-modal, [role='dialog']");
-    if (!modal) {
-      logToCloud("WARNING", "[Applier] Easy Apply modal not detected. Modal might have closed or submitted.");
-      // Check if modal closed due to manual action
-      await delay(1000);
-      if (!document.querySelector(".jobs-easy-apply-modal")) {
-        return true;
-      }
-      break;
-    }
+    await delay(5000); // Wait for employee search results to filter
+  }
+  
+  // 2. Scan cards
+  const cards = document.querySelectorAll(".org-people-profiles-module__profile-card, .org-people-profile-card, li.org-people-profiles-module__profile-item, .org-people-profile-card__profile-info");
+  logToCloud("INFO", `[Applier] Scanned ${cards.length} employee profile cards.`);
+  
+  let targetContact = null;
+  
+  // A. Search for 1st-degree connections first (already connected)
+  for (const card of cards) {
+    const text = card.innerText.toLowerCase();
+    const is1st = text.includes("1st") || text.includes("1st degree") || text.includes("connected");
     
-    // Autofill visible fields
-    logToCloud("INFO", `[Applier] Autofilling Easy Apply form step ${step + 1}...`);
-    await autofillFormFields(settings);
-    attachLearningInterceptors();
+    // Find Message button
+    const buttons = Array.from(card.querySelectorAll("button, a"));
+    const messageBtn = buttons.find(b => b.innerText && b.innerText.trim().toLowerCase() === "message");
     
-    // Search buttons
-    const buttons = Array.from(modal.querySelectorAll("button"));
-    const nextBtn = buttons.find(b => {
-      const txt = b.innerText ? b.innerText.trim().toLowerCase() : "";
-      return txt === "next" || txt === "continue" || txt === "review";
-    });
-    
-    const submitBtn = buttons.find(b => {
-      const txt = b.innerText ? b.innerText.trim().toLowerCase() : "";
-      return txt === "submit application" || txt === "submit";
-    });
-    
-    if (submitBtn) {
-      const reviewMode = settings.review_mode !== false;
-      
-      if (reviewMode) {
-        logToCloud("IMPORTANT", "[Applier] REVIEW MODE ACTIVE: Forms filled successfully! A dynamic borders highlight has been activated. Please review form entries in Chrome and click 'Submit' manually.");
-        
-        // Dynamic border flashing alert in browser
-        for (let flash = 0; flash < 5; flash++) {
-          document.body.style.border = "6px solid #a855f7";
-          await delay(300);
-          document.body.style.border = "none";
-          await delay(300);
-        }
-        
-        // Wait up to 120 seconds for user manual action
-        logToCloud("INFO", "[Applier] Paused: Waiting up to 2 minutes for user manual review and submission...");
-        for (let wait = 0; wait < 120; wait++) {
-          await delay(1000);
-          // Check if modal is gone (user submitted!)
-          if (!document.querySelector(".jobs-easy-apply-modal, [role='dialog']")) {
-            logToCloud("INFO", "[Applier] Form submission detected! Proceeding...");
-            return true;
-          }
-        }
-        logToCloud("WARNING", "[Applier] Review timeout reached. Moving on.");
-        return false;
-      } else {
-        logToCloud("INFO", "[Applier] Auto-submit Mode active. Submitting application form...");
-        submitBtn.click();
-        await delay(3000);
-        return true;
-      }
-    } else if (nextBtn) {
-      logToCloud("INFO", "[Applier] Moving to next page...");
-      nextBtn.click();
-      await delay(1500);
-      step++;
-    } else {
-      logToCloud("WARNING", "[Applier] No navigation buttons found. Application questionnaire might require manual fields completion.");
+    if (is1st && messageBtn) {
+      targetContact = { card, actionBtn: messageBtn, type: "MESSAGE" };
       break;
     }
   }
   
-  return false;
+  // B. Fallback to recruiters/hiring managers (Connect button) if no 1st-degree
+  if (!targetContact) {
+    logToCloud("INFO", "[Applier] No 1st-degree connections found. Searching for Recruiters/Hiring Managers to connect...");
+    for (const card of cards) {
+      const headline = card.querySelector(".lt-line-clamp, .artdeco-entity-lockup__subtitle, .org-people-profile-card__profile-title")?.innerText || card.innerText;
+      const lowerHeadline = headline.toLowerCase();
+      
+      const isHr = lowerHeadline.includes("recruiter") || 
+                   lowerHeadline.includes("hiring") || 
+                   lowerHeadline.includes("talent acquisition") || 
+                   lowerHeadline.includes("human resources") ||
+                   lowerHeadline.includes("acquisition");
+                   
+      if (isHr) {
+        const buttons = Array.from(card.querySelectorAll("button, a"));
+        const connectBtn = buttons.find(b => b.innerText && b.innerText.trim().toLowerCase() === "connect");
+        
+        if (connectBtn) {
+          targetContact = { card, actionBtn: connectBtn, type: "CONNECT" };
+          break;
+        }
+      }
+    }
+  }
+  
+  if (!targetContact) {
+    logToCloud("WARNING", "[Applier] Could not locate any target recruiting contacts on the People tab.");
+    chrome.storage.local.remove("active_referral_session");
+    chrome.runtime.sendMessage({ action: "APPLY_FINISHED", success: false });
+    return;
+  }
+  
+  const nameEl = targetContact.card.querySelector(".lt-line-clamp--single, .artdeco-entity-lockup__title, h4, h5, .org-people-profile-card__profile-title");
+  const targetName = nameEl ? nameEl.innerText.trim() : "Recruiting Manager";
+  logToCloud("INFO", `[Applier] Found target contact: '${targetName}' (Type: ${targetContact.type})`);
+  
+  // Injections configurations
+  const candidateName = session.settings && session.settings.active_profile ? session.settings.active_profile : "Rohit Singh";
+  const resumeLink = settings.resume_short_link || "https://drive.google.com/file/d/your_hosted_resume_link/view?usp=sharing";
+  
+  if (targetContact.type === "MESSAGE") {
+    // 1st connection - Direct message
+    logToCloud("INFO", `[Applier] Opening direct message window for '${targetName}'...`);
+    targetContact.actionBtn.click();
+    await delay(3000);
+    
+    // Find active chat input box
+    const chatInput = document.querySelector(".msg-form__contenteditable, [contenteditable='true'], textarea[name='message']");
+    if (chatInput) {
+      const customMessage = `Hi ${targetName.split(" ")[0]},\n\nHope you are doing well.\n\nI noticed the opening for '${job.title}' at '${job.company}' on LinkedIn and believe my background in Generative AI/LLM engineering directly aligns with your team's needs. I'd be highly grateful if you could refer me for this opening.\n\nYou can find my resume portfolio here: ${resumeLink}\n\nThank you!\n\nBest regards,\n${candidateName}`;
+      
+      chatInput.focus();
+      document.execCommand("insertText", false, customMessage);
+      await delay(1500);
+      
+      // Find Send button
+      const sendBtn = document.querySelector(".msg-form__send-button, button[type='submit']");
+      if (sendBtn) {
+        logToCloud("IMPORTANT", `[Applier] Direct message composed. Sending to '${targetName}'...`);
+        sendBtn.click();
+        await delay(2000);
+        
+        chrome.storage.local.remove("active_referral_session");
+        chrome.runtime.sendMessage({ action: "APPLY_FINISHED", success: true });
+        return;
+      }
+    }
+  } else if (targetContact.type === "CONNECT") {
+    // Recruiter - Connection request with 300 char note
+    logToCloud("INFO", `[Applier] Initiating Connection Request for '${targetName}'...`);
+    targetContact.actionBtn.click();
+    await delay(2500);
+    
+    // Check if connect note dialog opened
+    const addNoteBtn = await waitForSelectors(["button[aria-label='Add a note']", ".artdeco-modal button:nth-child(1)"], 4000) ||
+                       Array.from(document.querySelectorAll("button")).find(b => b.innerText && b.innerText.toLowerCase().includes("note"));
+                       
+    if (addNoteBtn) {
+      addNoteBtn.click();
+      await delay(1500);
+    }
+    
+    const noteArea = document.querySelector("textarea[name='message'], .artdeco-modal textarea, textarea[id*='custom-message']");
+    if (noteArea) {
+      // 300 char strict limit note
+      const customNote = `Hi ${targetName.split(" ")[0]}, hope you're doing well! I saw the '${job.title}' opening at '${job.company}'. With 4+ yrs of Generative AI/LLM experience, I'd love to connect & share my resume link for a potential referral: ${resumeLink}`;
+      
+      noteArea.focus();
+      noteArea.value = customNote;
+      triggerInputChange(noteArea);
+      await delay(1000);
+      
+      // Find Send Connect request button
+      const sendConnectBtn = Array.from(document.querySelectorAll(".artdeco-modal button")).find(b => b.innerText && b.innerText.toLowerCase().includes("send"));
+      if (sendConnectBtn) {
+        logToCloud("IMPORTANT", `[Applier] Composed 300-char Connect Note. Sending connection invite to '${targetName}'...`);
+        sendConnectBtn.click();
+        await delay(2000);
+        
+        chrome.storage.local.remove("active_referral_session");
+        chrome.runtime.sendMessage({ action: "APPLY_FINISHED", success: true });
+        return;
+      }
+    }
+  }
+  
+  logToCloud("WARNING", "[Applier] Could not execute the stashed messaging flow actions. Paused for manual connection.");
+  chrome.storage.local.remove("active_referral_session");
+  chrome.runtime.sendMessage({ action: "APPLY_FINISHED", success: false });
 }
 
 // Autofill dynamic inputs (Universal for LinkedIn Easy Apply and Naukri questionnaire popups)
@@ -562,7 +663,7 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     
     try {
       if (message.job.url.includes("linkedin.com")) {
-        success = await runLinkedInEasyApply(message.job, message.settings);
+        success = await runLinkedInReferralFlow(message.job, message.settings);
       } else if (message.job.url.includes("naukri.com")) {
         success = await runNaukriApply(message.job, message.settings);
       } else {
@@ -585,4 +686,19 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
 logToCloud("INFO", "[Applier] content_applier.js successfully injected. Signaling readiness...");
 chrome.runtime.sendMessage({
   action: "APPLIER_READY"
+});
+
+// Check for active stateful referral sessions on injection/page load!
+chrome.storage.local.get("active_referral_session", async (data) => {
+  const session = data.active_referral_session;
+  if (session && window.location.href.includes("linkedin.com/company/")) {
+    logToCloud("INFO", `[Applier] Resuming stashed referral session for '${session.job.title}' at '${session.job.company}'...`);
+    try {
+      await continueLinkedInReferralFlow(session);
+    } catch (err) {
+      logToCloud("ERROR", `[Applier] Stashed referral session failed: ${err.message}`);
+      chrome.storage.local.remove("active_referral_session");
+      chrome.runtime.sendMessage({ action: "APPLY_FINISHED", success: false });
+    }
+  }
 });

@@ -2,6 +2,8 @@ import os
 import threading
 import queue
 import asyncio
+from pathlib import Path
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request, BackgroundTasks, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -9,9 +11,14 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from typing import List, Dict
 
+# Load environment variables
+BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(dotenv_path=BASE_DIR.parent / ".env")
+
 import config
 import database
 import ai_matcher
+import mailer
 
 app = FastAPI(title="JobForge Cloud SaaS", description="Decoupled Cloud SaaS Server")
 
@@ -147,9 +154,21 @@ def post_upload_jobs(raw_jobs: List[dict], background_tasks: BackgroundTasks):
                 match_res = ai_matcher.evaluate_job(title, company, desc, location)
                 
                 is_easy_apply = r_job.get("is_easy_apply", True)
-                status = "Matches" if is_easy_apply else "External"
+                hr_email = r_job.get("hr_email", "").strip()
+                platform = r_job.get("platform", "LinkedIn")
+                
                 if not is_easy_apply:
+                    status = "External"
                     bridge_logger("INFO", f"[AI Matcher] Job '{title}' at '{company}' requires external company portal application. Storing as status 'External'.")
+                elif platform == "Naukri":
+                    if hr_email:
+                        status = "Matches"
+                        bridge_logger("INFO", f"[AI Matcher] Naukri Job '{title}' at '{company}' has discovered HR email: {hr_email}. Storing as Matches.")
+                    else:
+                        status = "EmailRequired"
+                        bridge_logger("INFO", f"[AI Matcher] Naukri Job '{title}' at '{company}' does not publish recruiter email. Storing as 'EmailRequired'.")
+                else:
+                    status = "Matches"
                 
                 job_data = {
                     "id": r_job.get("id"),
@@ -157,7 +176,7 @@ def post_upload_jobs(raw_jobs: List[dict], background_tasks: BackgroundTasks):
                     "company": company,
                     "location": location,
                     "url": r_job.get("url"),
-                    "platform": r_job.get("platform"),
+                    "platform": platform,
                     "description": desc,
                     "salary": r_job.get("salary", "Not specified"),
                     "match_score": match_res.get("match_score", 0),
@@ -165,7 +184,8 @@ def post_upload_jobs(raw_jobs: List[dict], background_tasks: BackgroundTasks):
                     "matched_skills": ", ".join(match_res.get("matched_skills", [])),
                     "missing_skills": ", ".join(match_res.get("missing_skills", [])),
                     "cover_letter": match_res.get("cover_letter", ""),
-                    "status": status
+                    "status": status,
+                    "hr_email": hr_email
                 }
                 
                 database.add_job(job_data)
@@ -392,6 +412,74 @@ async def websocket_ui_endpoint(websocket: WebSocket):
     except Exception as e:
         print(f"UI WS Exception: {e}")
         ui_manager.disconnect(websocket)
+
+# ---------------- SMTP REFERRAL EMAIL DISPATCHERS ----------------
+class SaveEmailRequest(BaseModel):
+    job_id: str
+    email: str
+
+class SendEmailRequest(BaseModel):
+    job_id: str
+
+@app.post("/api/jobs/save-hr-email")
+def post_save_hr_email(req: SaveEmailRequest):
+    database.update_job_email(req.job_id, req.email)
+    database.update_job_status(req.job_id, "Matches")
+    bridge_logger("INFO", f"[System] Stashed HR Email '{req.email}' for Job ID {req.job_id}. Status updated to 'Matches'.")
+    return JSONResponse({"success": True})
+
+@app.post("/api/jobs/send-referral-email")
+def post_send_referral_email(req: SendEmailRequest, background_tasks: BackgroundTasks):
+    job = database.get_job_by_id(req.job_id)
+    if not job:
+        return JSONResponse({"success": False, "message": "Job not found."})
+        
+    to_email = job.get("hr_email", "").strip()
+    if not to_email:
+        return JSONResponse({"success": False, "message": "HR Email is not stashed for this job."})
+        
+    settings = config.load_settings()
+    p = config.get_active_profile()
+    candidate_real_name = p.get("name", "Rohit Singh")
+    
+    subject = f"Referral Request: {job['title']} - {candidate_real_name}"
+    
+    # Custom hybrid pitch construct
+    core_pitch = f"I am a Senior Software Engineer specializing in building enterprise AI and Generative AI systems. I saw the opening for '{job['title']}' at '{job['company']}' on Naukri and believe my background aligns directly with your engineering requirements."
+    
+    html_body = f"""
+    <html>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+        <h2 style="color: #6d28d9; border-bottom: 2px solid #e9d5ff; padding-bottom: 10px;">Referral request: {job['title']}</h2>
+        <p>Dear Hiring Team / Recruiting Manager,</p>
+        <p>Hope you are doing well.</p>
+        <p>{core_pitch}</p>
+        <p>You can find my detailed technical resume and credentials attached to this email, or review my digital portfolio online via my hosted short link:<br>
+        <a href="{os.getenv('RESUME_SHORT_LINK', '')}" style="color: #6d28d9; font-weight: bold;">{os.getenv('RESUME_SHORT_LINK', 'View Resume Online')}</a></p>
+        <p>I would be highly grateful for your referral or a brief conversation to explore how my expertise matches your team's current development needs.</p>
+        <p>Thank you very much for your time and consideration.</p>
+        <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;">
+        <p style="font-size: 13px; color: #666;">
+          Sincerely,<br>
+          <strong>{candidate_real_name}</strong><br>
+          Senior Software Engineer<br>
+          <a href="https://linkedin.com/in/tkdrohit" style="color: #0a66c2;">LinkedIn Profile</a>
+        </p>
+      </body>
+    </html>
+    """
+    
+    def trigger_background_mail():
+        bridge_logger("INFO", f"[SMTP Mailer] Dispatching referral email to: {to_email}...")
+        res = mailer.send_referral_email(to_email, subject, html_body)
+        if res["success"]:
+            database.update_job_status(req.job_id, "Applied")
+            bridge_logger("IMPORTANT", f"[SMTP Mailer] {res['message']}")
+        else:
+            bridge_logger("ERROR", f"[SMTP Mailer] {res['message']}")
+            
+    background_tasks.add_task(trigger_background_mail)
+    return JSONResponse({"success": True, "message": "Email queue spawned for SMTP transmission."})
 
 if __name__ == "__main__":
     import uvicorn

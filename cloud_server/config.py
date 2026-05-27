@@ -1,8 +1,11 @@
 import os
 from pathlib import Path
+from dotenv import load_dotenv
 
 # Paths
 BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(dotenv_path=BASE_DIR.parent / ".env")
+
 DATA_DIR = BASE_DIR / "data"
 DATA_DIR.mkdir(exist_ok=True)
 
@@ -78,7 +81,13 @@ DEFAULT_SETTINGS = {
     "auto_apply_threshold": 85,
     "max_jobs_to_scan": 15,
     "scraping_delay_min": 2,
-    "scraping_delay_max": 5
+    "scraping_delay_max": 5,
+    "smtp_host": os.getenv("SMTP_HOST", "smtp.gmail.com"),
+    "smtp_port": os.getenv("SMTP_PORT", "465"),
+    "smtp_email": os.getenv("SMTP_EMAIL", ""),
+    "smtp_password": os.getenv("SMTP_PASSWORD", ""),
+    "resume_pdf_path": os.getenv("RESUME_PDF_PATH", ""),
+    "resume_short_link": os.getenv("RESUME_SHORT_LINK", "")
 }
 
 def load_settings():

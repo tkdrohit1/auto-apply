@@ -377,6 +377,10 @@ function renderJobsList() {
                 statusBadge = `<span class="match-badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); margin-top: 4px; font-size: 10px; padding: 2px 6px;">External Portal</span>`;
             } else if (job.status === 'Closed') {
                 statusBadge = `<span class="match-badge" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); margin-top: 4px; font-size: 10px; padding: 2px 6px;">Archived</span>`;
+            } else if (job.status === 'EmailRequired') {
+                statusBadge = `<span class="match-badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); margin-top: 4px; font-size: 10px; padding: 2px 6px;">Email Required</span>`;
+            } else if (job.platform === 'Naukri' && job.hr_email) {
+                statusBadge = `<span class="match-badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); margin-top: 4px; font-size: 10px; padding: 2px 6px;">Referral Ready</span>`;
             }
             
             return `
@@ -427,6 +431,27 @@ function selectJob(jobId) {
     document.getElementById('detail-company').innerText = job.company;
     document.getElementById('detail-location').innerText = job.location || 'Noida, India';
     document.getElementById('detail-platform').innerText = job.platform;
+    
+    // Naukri Email Direct Referral Section Display Toggle
+    const emailRefBox = document.getElementById('detail-email-referral-box');
+    const emailSendBox = document.getElementById('detail-email-send-box');
+    if (job.platform === 'Naukri') {
+        if (job.status === 'EmailRequired') {
+            emailRefBox.style.display = 'block';
+            emailSendBox.style.display = 'none';
+            document.getElementById('input-hr-email').value = '';
+        } else if (job.hr_email) {
+            emailRefBox.style.display = 'none';
+            emailSendBox.style.display = 'block';
+            document.getElementById('detail-hr-email-text').innerText = job.hr_email;
+        } else {
+            emailRefBox.style.display = 'none';
+            emailSendBox.style.display = 'none';
+        }
+    } else {
+        emailRefBox.style.display = 'none';
+        emailSendBox.style.display = 'none';
+    }
     
     const badge = document.getElementById('detail-match-badge');
     badge.innerText = `${job.match_score}% Match`;
@@ -768,6 +793,14 @@ function initSettingsView() {
             document.getElementById('threshold-val').innerText = settings.auto_apply_threshold;
             document.getElementById('settings-chrome-path').value = settings.chrome_profile_path || '';
             
+            // SMTP & Resume Integration
+            document.getElementById('settings-smtp-host').value = settings.smtp_host || 'smtp.gmail.com';
+            document.getElementById('settings-smtp-port').value = settings.smtp_port || '465';
+            document.getElementById('settings-smtp-email').value = settings.smtp_email || '';
+            document.getElementById('settings-smtp-password').value = settings.smtp_password || '';
+            document.getElementById('settings-resume-pdf-path').value = settings.resume_pdf_path || '';
+            document.getElementById('settings-resume-short-link').value = settings.resume_short_link || '';
+            
             currentQueries = settings.search_queries || [];
             currentLocations = settings.locations || [];
             
@@ -844,7 +877,15 @@ function saveSettingsToBackend() {
         auto_apply_threshold: parseInt(document.getElementById('settings-threshold').value),
         chrome_profile_path: document.getElementById('settings-chrome-path').value.trim(),
         search_queries: currentQueries,
-        locations: currentLocations
+        locations: currentLocations,
+        
+        // SMTP & Resume Integration
+        smtp_host: document.getElementById('settings-smtp-host').value.trim(),
+        smtp_port: document.getElementById('settings-smtp-port').value.trim(),
+        smtp_email: document.getElementById('settings-smtp-email').value.trim(),
+        smtp_password: document.getElementById('settings-smtp-password').value.trim(),
+        resume_pdf_path: document.getElementById('settings-resume-pdf-path').value.trim(),
+        resume_short_link: document.getElementById('settings-resume-short-link').value.trim()
     };
     
     fetch('/api/settings', {
@@ -965,4 +1006,72 @@ function formatRelativeDate(isoString) {
     } catch(e) {
         return 'Recently';
     }
+}
+
+// SMTP HR Referral Event Triggers
+function submitHrEmail() {
+    if (!currentSelectedJobId) return;
+    const emailInput = document.getElementById('input-hr-email');
+    const email = emailInput.value.trim();
+    if (!email || !email.includes('@')) {
+        alert("Please enter a valid email address.");
+        return;
+    }
+    
+    fetch('/api/jobs/save-hr-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ job_id: currentSelectedJobId, email: email })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            alert("HR Email stashed successfully! Status updated to Matches.");
+            refreshDashboardData();
+        } else {
+            alert("Failed to save email: " + data.message);
+        }
+    })
+    .catch(err => {
+        console.error("Error saving email:", err);
+    });
+}
+
+function triggerEmailReferral() {
+    if (!currentSelectedJobId) return;
+    
+    const sendBtn = document.getElementById('btn-send-email-referral');
+    const originalContent = sendBtn.innerHTML;
+    sendBtn.disabled = true;
+    sendBtn.innerHTML = `<span>Sending Email...</span>`;
+    
+    switchTab('console');
+    appendConsoleLine('INFO', `[System] Dispatching direct email referral request for Job ID: ${currentSelectedJobId}...`);
+    
+    fetch('/api/jobs/send-referral-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ job_id: currentSelectedJobId })
+    })
+    .then(res => res.json())
+    .then(data => {
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = originalContent;
+        if (data.success) {
+            appendConsoleLine('IMPORTANT', `[SMTP Mailer] Referral email successfully queued inside backend task broker!`);
+            alert("Referral email sent successfully!");
+            currentSelectedJobId = null;
+            refreshDashboardData();
+            switchTab('dashboard');
+        } else {
+            appendConsoleLine('ERROR', `[SMTP Mailer] Failed to queue email: ${data.message}`);
+            alert("Error sending email: " + data.message);
+        }
+    })
+    .catch(err => {
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = originalContent;
+        appendConsoleLine('ERROR', `[SMTP Mailer] Network request failed: ${err}`);
+        alert("Network error: " + err);
+    });
 }

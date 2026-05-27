@@ -29,11 +29,19 @@ def init_db():
         missing_skills TEXT,
         cover_letter TEXT,
         status TEXT DEFAULT 'Matches',
+        hr_email TEXT,
         created_at TEXT,
         updated_at TEXT
     )
     ''')
     
+    # Safe alter migration check for existing databases
+    try:
+        cursor.execute("ALTER TABLE jobs ADD COLUMN hr_email TEXT")
+    except sqlite3.OperationalError:
+        # Column already exists, safe to ignore
+        pass
+        
     # Create logs table for websocket/console logs persistence
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS logs (
@@ -58,14 +66,15 @@ def add_job(job_data):
         INSERT INTO jobs (
             id, title, company, location, url, platform, description, salary, 
             match_score, match_explanation, matched_skills, missing_skills, cover_letter,
-            status, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            status, hr_email, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
             title=excluded.title,
             company=excluded.company,
             location=excluded.location,
             description=excluded.description,
             salary=excluded.salary,
+            hr_email=CASE WHEN jobs.hr_email IS NOT NULL AND jobs.hr_email != '' THEN jobs.hr_email ELSE excluded.hr_email END,
             updated_at=?
         ''', (
             job_data.get("id"),
@@ -82,6 +91,7 @@ def add_job(job_data):
             job_data.get("missing_skills", ""),
             job_data.get("cover_letter", ""),
             job_data.get("status", "Matches"),
+            job_data.get("hr_email", ""),
             now,
             now,
             now
@@ -94,6 +104,16 @@ def add_job(job_data):
     finally:
         conn.close()
     return success
+
+def update_job_email(job_id, email):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    now = datetime.now().isoformat()
+    cursor.execute('''
+    UPDATE jobs SET hr_email = ?, updated_at = ? WHERE id = ?
+    ''', (email, now, job_id))
+    conn.commit()
+    conn.close()
 
 def update_job_status(job_id, status):
     conn = get_db_connection()
