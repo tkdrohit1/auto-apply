@@ -6,24 +6,28 @@ from email.mime.base import MIMEBase
 from email import encoders
 from pathlib import Path
 from dotenv import load_dotenv
+import config
 
 # Load .env variables
 load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent / ".env")
 
 def send_referral_email(to_email: str, subject: str, html_body: str) -> dict:
     """
-    Sends a referral email with a PDF resume attachment using SMTP credentials stashed in .env.
+    Sends a referral email with a PDF resume attachment using SMTP credentials.
+    Prioritizes UI settings.json over legacy .env variables.
     """
-    smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
-    smtp_port_str = os.getenv("SMTP_PORT", "465")
-    smtp_email = os.getenv("SMTP_EMAIL", "").strip()
-    smtp_password = os.getenv("SMTP_PASSWORD", "").strip()
-    resume_path_str = os.getenv("RESUME_PDF_PATH", "").strip()
+    settings = config.load_settings()
+    
+    smtp_host = settings.get("smtp_host") or os.getenv("SMTP_HOST", "smtp.gmail.com")
+    smtp_port_str = settings.get("smtp_port") or os.getenv("SMTP_PORT", "465")
+    smtp_email = (settings.get("smtp_email") or os.getenv("SMTP_EMAIL", "")).strip()
+    smtp_password = (settings.get("smtp_password") or os.getenv("SMTP_PASSWORD", "")).strip()
+    resume_path_str = (settings.get("resume_pdf_path") or os.getenv("RESUME_PDF_PATH", "")).strip()
 
     if not smtp_email or not smtp_password:
         return {
             "success": False, 
-            "message": "SMTP credentials are not configured in your .env file. Please supply SMTP_EMAIL and SMTP_PASSWORD."
+            "message": "SMTP credentials are not configured. Please supply Sender Email and App Password in settings."
         }
 
     try:
