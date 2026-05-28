@@ -657,29 +657,35 @@ async function runNaukriApply(job, settings) {
 }
 
 // ---------------- MESSAGE ROUTER ----------------
-chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "TRIGGER_AUTOFILL") {
-    let success = false;
-    
-    try {
-      if (message.job.url.includes("linkedin.com")) {
-        success = await runLinkedInReferralFlow(message.job, message.settings);
-      } else if (message.job.url.includes("naukri.com")) {
-        success = await runNaukriApply(message.job, message.settings);
-      } else {
-        logToCloud("ERROR", "[Applier] Unsupported job platform url.");
+    // Execute async operations in a self-invoking async context to prevent channel teardown
+    (async () => {
+      let success = false;
+      try {
+        if (message.job.url.includes("linkedin.com")) {
+          success = await runLinkedInReferralFlow(message.job, message.settings);
+        } else if (message.job.url.includes("naukri.com")) {
+          success = await runNaukriApply(message.job, message.settings);
+        } else {
+          logToCloud("ERROR", "[Applier] Unsupported job platform url.");
+        }
+      } catch (err) {
+        logToCloud("ERROR", `[Applier] Injected form filler execution crashed: ${err.message}`);
       }
-    } catch (err) {
-      logToCloud("ERROR", `[Applier] Injected form filler execution crashed: ${err.message}`);
-    }
+      
+      // Notify background.js via response callback
+      sendResponse({ success: success });
+      
+      // Also dispatch persistent websocket APPLY_FINISHED signal
+      chrome.runtime.sendMessage({
+        action: "APPLY_FINISHED",
+        success: success
+      });
+    })();
     
-    // Notify background.js that we finished
-    chrome.runtime.sendMessage({
-      action: "APPLY_FINISHED",
-      success: success
-    });
+    return true; // Keep the message channel open for asynchronous response!
   }
-  return true;
 });
 
 // Signal to background.js that we are successfully injected and ready to listen for actions!
